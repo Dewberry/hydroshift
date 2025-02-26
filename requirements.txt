@@ -1,0 +1,7 @@
+streamlit==1.42.2
+plotly==6.0.0
+dataretrieval==1.0.11
+scipy==1.15.2
+pandas==2.2.3
+streamlit_folium==0.24.0
+folium==0.19.4
