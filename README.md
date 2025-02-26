@@ -23,4 +23,6 @@ Install requirements:
 ```
 
 Run the app:
+```
 (venv) $ streamlit run code/app.py
+```
