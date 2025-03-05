@@ -10,7 +10,7 @@ import scipy.stats as stats
 def get_ams(gage_id, return_lp3_stats=False):
     """Fetches Annual Maximum Series (AMS) peak flow data for a given gage."""
     try:
-        df = nwis.get_record(service="peaks", sites=[gage_id])
+        df = nwis.get_record(service="peaks", sites=[gage_id],ssl_check=False)
     except NoSitesError:
         logging.warning(f"Peaks could not be found for gage id: {gage_id}")
         return None
@@ -26,7 +26,7 @@ def get_ams(gage_id, return_lp3_stats=False):
 def get_flow_stats(gage_id):
     """Fetches flow statistics for a given gage."""
     try:
-        df = nwis.get_stats(sites=gage_id)[0]
+        df = nwis.get_stats(sites=gage_id,ssl_check=False)[0]
     except IndexError:
         logging.warning(f"Flow stats could not be found for gage_id: {gage_id}")
         return None
@@ -37,7 +37,7 @@ def get_flow_stats(gage_id):
 def load_site_data(gage_number: str) -> dict:
     """Query NWIS for site information"""
     try:
-        resp = nwis.get_record(sites=gage_number, service="site")
+        resp = nwis.get_record(sites=gage_number, service="site", ssl_check=False)
         return {
             "Site Number": resp["site_no"].iloc[0],
             "Station Name": resp["station_nm"].iloc[0],
@@ -66,7 +66,7 @@ def log_pearson_iii(peak_flows: pd.Series, standard_return_periods: list = [2, 5
 def get_daily_values(gage_id, start_date, end_date):
     """Fetches mean daily flow values for a given gage."""
     try:
-        dv = nwis.get_dv(gage_id, start_date, end_date)[0]
+        dv = nwis.get_dv(gage_id, start_date, end_date,ssl_check=False)[0]
     except Exception:
         logging.warning(f"Daily Values could not be found for gage_id: {gage_id}")
         return None
@@ -77,7 +77,7 @@ def get_daily_values(gage_id, start_date, end_date):
 def get_monthly_values(gage_id):
     """Fetches mean monthly flow values for a given gage and assigns a datetime column based on the year and month."""
     try:
-        mv = nwis.get_stats(gage_id, statReportType="monthly")[0]
+        mv = nwis.get_stats(gage_id, statReportType="monthly",ssl_check=False)[0]
     except Exception:
         logging.warning(f"Monthly Values could not be found for gage_id: {gage_id}")
         return None
