@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.stats import ks_2samp
+from scipy.stats import cramervonmises_2samp, ks_2samp, mannwhitneyu, mood
 
 from tst.errors import ShortTimeSeries
 
@@ -41,6 +41,7 @@ class KolmogorovSmirnovCPM(ChangePointModel):
     def kim_correction(self, n0: int, n1: int, ks_stat: float):
         """Apply Kim (1969) continuity correction to the KS statistic."""
         # See https://github.com/Quentin62/cpm/blob/9bc45141c78790d6fabbc9fa8907078bd69a7772/src/ChangePointModelKS.cpp
+        # TODO:  Make sure n0 and n1 are indexing the same way as github and that we don't have to +1 or -1 or something
         # Ensure n0 >= n1
         if n1 > n0:
             n0, n1 = n1, n0
@@ -59,8 +60,64 @@ class KolmogorovSmirnovCPM(ChangePointModel):
         return corrected_stat
 
 
+class CramerVonMisesCPM(ChangePointModel):
+
+    def test_statistic(self, s1, s2):
+        stat = cramervonmises_2samp(s1, s2).statistic
+        return self.adjust_for_sample_size(stat, s1, s2)
+
+    def adjust_for_sample_size(self, statistic: float, s1: np.ndarray, s2: np.ndarray) -> float:
+        """Adjust the statistic for sample size."""
+        # https://github.com/Quentin62/cpm/blob/9bc45141c78790d6fabbc9fa8907078bd69a7772/src/ChangePointModelCVM.cpp
+        n0 = len(s1)
+        n1 = len(s2)
+        N = n0 + n1
+        prod = n0 * n1
+        mu = 1 / 6 + 1 / (6 * N)
+        sigma = np.sqrt((1 / 45) * ((N + 1) / (N**2)) * ((4 * prod * N - 3 * (n1**2 + n0**2) - 2 * prod) / (4 * prod)))
+        return (statistic * (prod) / (N**2) - mu) / sigma
+
+
+class LepageCPM(ChangePointModel):
+
+    # Ross, G. J., Tasoulis, D. K., Adams, N. M. (2011)– A Nonparametric Change-Point Model for Streaming Data, Technometrics, 53(4)
+
+    def test_statistic(self, s1, s2):
+        # Initial test statistics
+        mood_stat = mood(s1, s2).statistic
+        mw_stat = mannwhitneyu(s1, s2).statistic
+
+        # Normalize
+        n0 = len(s1)
+        n1 = len(s2)
+        N = n0 + n1
+
+        mw_null_mean = n0 * n1 * 0.5
+        mw_null_sd = (n0 * n1 * (n0 + n1 + 1) / 12) ** 0.5
+        mw_stat = abs(mw_null_mean - mw_stat) / mw_null_sd
+
+        mood_null_mean = n0 * ((N**2) - 1) / 12
+        mood_null_sd = (n0 * n1 * (N + 1) * ((N**2) - 4) / 180) ** 2
+        mood_stat = abs(mood_null_mean - mood_stat) / mood_null_sd
+        return (mood_stat**2) + (mw_stat**2)
+
+
 def ks_cpm(ts: np.ndarray, burn_in: int = 20) -> tuple[np.ndarray, int]:
     """Analyze a changepoint model for the Kolmogorov-Smirnov test."""
     cpm = KolmogorovSmirnovCPM()
+    cpm.burn_in = burn_in
+    return cpm.detect_change_point(ts)
+
+
+def cvm_cpm(ts: np.ndarray, burn_in: int = 20) -> tuple[np.ndarray, int]:
+    """Analyze a changepoint model for the Cramer Von Mises test."""
+    cpm = CramerVonMisesCPM()
+    cpm.burn_in = burn_in
+    return cpm.detect_change_point(ts)
+
+
+def lapage_cpm(ts: np.ndarray, burn_in: int = 20) -> tuple[np.ndarray, int]:
+    """Analyze a changepoint model for the Cramer Von Mises test."""
+    cpm = LepageCPM()
     cpm.burn_in = burn_in
     return cpm.detect_change_point(ts)

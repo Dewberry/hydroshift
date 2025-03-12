@@ -5,7 +5,7 @@ import numpy as np
 from scipy.ndimage import gaussian_filter1d
 from scipy.stats import genpareto
 
-from tst.stats.tests import ks_cpm
+from tst.stats.tests import cvm_cpm, ks_cpm, lapage_cpm
 
 TESTS = {
     "1": {"p1_length": 50, "p2_length": 50, "change_types": ["loc"], "severity": 1.1},
@@ -69,12 +69,26 @@ def test_cvm_cpm():
 
     for t in TESTS:
         ts = generate_timeseries(**TESTS[t])
-        pvals, cp = ks_cpm(ts)
+        pvals, cp = cvm_cpm(ts)
 
-        diagnostic_plot(ts, pvals, cp, f"tests/stat_tests/ks/{t}.png")
+        diagnostic_plot(ts, pvals, cp, f"tests/stat_tests/cvm/{t}.png")
         cp_ = TESTS[t]["p1_length"]
-        assert cp == cp_, f"Kolmogorov-Smirnov CPM failed to detect correct changepoint. Result: {cp}, Truth: {cp_}"
+        assert cp == cp_, f"Cramer Von-Mises CPM failed to detect correct changepoint. Result: {cp}, Truth: {cp_}"
+
+
+def test_lepage_cpm():
+    """Test the Cramer-von-mises change point model."""
+
+    for t in TESTS:
+        ts = generate_timeseries(**TESTS[t])
+        pvals, cp = lapage_cpm(ts)
+
+        diagnostic_plot(ts, pvals, cp, f"tests/stat_tests/lepage/{t}.png")
+        cp_ = TESTS[t]["p1_length"]
+        assert abs(cp - cp_) < 10, f"Lepage CPM failed to detect correct changepoint. Result: {cp}, Truth: {cp_}"
 
 
 if __name__ == "__main__":
-    test_ks_cpm()
+    test_lepage_cpm()
+    # test_cvm_cpm()
+    # test_ks_cpm()
