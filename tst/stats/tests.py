@@ -102,6 +102,18 @@ class LepageCPM(ChangePointModel):
         return (mood_stat**2) + (mw_stat**2)
 
 
+class MoodCPM(ChangePointModel):
+
+    def test_statistic(self, s1, s2):
+        n0 = len(s1)
+        n1 = len(s2)
+        N = n0 + n1
+        mood_null_mean = n0 * ((N**2) - 1) / 12
+        mood_null_sd = (n0 * n1 * (N + 1) * ((N**2) - 4) / 180) ** 2
+        mood_stat = abs(mood_null_mean - mood(s1, s2).statistic) / mood_null_sd
+        return mood_stat
+
+
 def ks_cpm(ts: np.ndarray, burn_in: int = 20) -> tuple[np.ndarray, int]:
     """Analyze a changepoint model for the Kolmogorov-Smirnov test."""
     cpm = KolmogorovSmirnovCPM()
