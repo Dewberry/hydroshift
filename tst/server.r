@@ -37,3 +37,20 @@ function(x, cpm_type) {
   return (processStream(x, cpm_type))
 }
 
+#* @get /detect_change_point_batch
+#* @param x A vector containing the univariate data stream to be processed.
+#* @param cpm_type The type of CPM which is used.
+function(x, cpm_type) {
+  x <- as.numeric(x)
+  return (detectChangePointBatch(x, cpm_type))
+}
+
+#* @get /get_batch_threshold
+#* @param cpm_type The type of CPM which is used.
+#* @param alpha The target p value.
+#* @param n The length of the batch sequence.
+function(cpm_type, alpha, n) {
+  alpha <- as.numeric(alpha)
+  n <- as.numeric(n)
+  return (getBatchThreshold(cpm_type, alpha, n))
+}
