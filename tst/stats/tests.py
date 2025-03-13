@@ -1,7 +1,9 @@
 import numpy as np
+import requests
 from scipy.stats import cramervonmises_2samp, ks_2samp, mannwhitneyu, mood
 
 from tst.errors import ShortTimeSeries
+from tst.start_r_server import start_server
 
 
 class ChangePointModel:
@@ -133,3 +135,12 @@ def lapage_cpm(ts: np.ndarray, burn_in: int = 20) -> tuple[np.ndarray, int]:
     cpm = LepageCPM()
     cpm.burn_in = burn_in
     return cpm.detect_change_point(ts)
+
+
+def cpm_process_stream(x: np.ndarray, cpm_type: str) -> np.ndarray:
+    """Run a change point analysis with the cpm R package.""" ""
+    start_server()
+    payload = {"x": x, "cpm_type": cpm_type}
+    url = "http://127.0.0.1:9999/process_stream"
+    response = requests.get(url, params=payload)
+    return response.json()

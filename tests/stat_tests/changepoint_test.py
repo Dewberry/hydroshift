@@ -5,34 +5,30 @@ import numpy as np
 from scipy.ndimage import gaussian_filter1d
 from scipy.stats import genpareto
 
-from tst.stats.tests import cvm_cpm, ks_cpm, lapage_cpm
+from tst.stats.tests import cpm_process_stream
 
 TESTS = {
-    "1": {"p1_length": 50, "p2_length": 50, "change_types": ["loc"], "severity": 1.1},
-    "2": {"p1_length": 50, "p2_length": 50, "change_types": ["loc", "scale"], "severity": 1.1},
-    "3": {"p1_length": 50, "p2_length": 50, "change_types": ["scale"], "severity": 10},
+    "1": [{"length": 50, "loc": 1000, "scale": 100, "c": 0.3}, {"length": 50, "loc": 1100, "scale": 100, "c": 0.3}],
+    "2": [{"length": 50, "loc": 1000, "scale": 100, "c": 0.3}, {"length": 50, "loc": 1050, "scale": 200, "c": 0.5}],
+    "3": [
+        {"length": 50, "loc": 1000, "scale": 100, "c": 0.3},
+        {"length": 50, "loc": 900, "scale": 500, "c": 0.5},
+        {"length": 50, "loc": 1000, "scale": 100, "c": 0.3},
+    ],
 }
 
 
-def generate_timeseries(p1_length: int, p2_length: int, change_types: list[str], severity: float) -> np.ndarray:
+def generate_timeseries(segments: list) -> np.ndarray:
     """Generate a timeseries from two distributions."""
-
-    # Set up distributions
-    parameters = {"p1": {"loc": 1000, "scale": 100, "c": 0.3}, "p2": {}}
-    for p in parameters["p1"]:
-        if p in change_types:
-            parameters["p2"][p] = parameters["p1"][p] * severity
-        else:
-            parameters["p2"][p] = parameters["p1"][p]
-    p1_dist = genpareto(**parameters["p1"])
-    p2_dist = genpareto(**parameters["p2"])
-
-    # Generate RVs
     rs = 1
-    p1 = p1_dist.rvs(size=p1_length, random_state=rs)
-    p2 = p2_dist.rvs(size=p2_length, random_state=rs)
+    rvs = []
+    for s in segments:
+        length = s["length"]
+        params = {k: v for k, v in s.items() if k != "length"}
+        dist = genpareto(**params)
+        rvs.append(dist.rvs(size=length, random_state=rs))
 
-    return np.append(p1, p2, axis=0)
+    return np.concatenate(rvs, axis=0)
 
 
 def diagnostic_plot(ts: np.ndarray, pvals: np.ndarray, cp: int, out_path: str):
@@ -52,43 +48,29 @@ def diagnostic_plot(ts: np.ndarray, pvals: np.ndarray, cp: int, out_path: str):
     fig.savefig(out_path)
 
 
-def test_ks_cpm():
-    """Test the kolmogorov-smirnov change point model."""
+def diagnostic_plot_2(ts: np.ndarray, cps: list, out_path: str):
+    """Make a diagnostic plot for a test."""
+    Path(out_path).parent.mkdir(parents=True, exist_ok=True)
+    fig, ax = plt.subplots(figsize=(10, 4))
+    ax.scatter(range(len(ts)), ts, ec="#4d64fa", fc="none")
+    for cp in cps:
+        ax.axvline(cp, c="r", ls="dashed")
+    ax.set_facecolor("whitesmoke")
+    ax.set_xlabel("Time")
+    ax.set_ylabel("Magnitude")
+    fig.tight_layout()
+    fig.savefig(out_path)
 
+
+def test_cpm(metric: str):
+    """Test the a change point model for a given metric."""
     for t in TESTS:
-        ts = generate_timeseries(**TESTS[t])
-        pvals, cp = ks_cpm(ts)
-
-        diagnostic_plot(ts, pvals, cp, f"tests/stat_tests/ks/{t}.png")
-        cp_ = TESTS[t]["p1_length"]
-        assert cp == cp_, f"Kolmogorov-Smirnov CPM failed to detect correct changepoint. Result: {cp}, Truth: {cp_}"
-
-
-def test_cvm_cpm():
-    """Test the Cramer-von-mises change point model."""
-
-    for t in TESTS:
-        ts = generate_timeseries(**TESTS[t])
-        pvals, cp = cvm_cpm(ts)
-
-        diagnostic_plot(ts, pvals, cp, f"tests/stat_tests/cvm/{t}.png")
-        cp_ = TESTS[t]["p1_length"]
-        assert cp == cp_, f"Cramer Von-Mises CPM failed to detect correct changepoint. Result: {cp}, Truth: {cp_}"
-
-
-def test_lepage_cpm():
-    """Test the Cramer-von-mises change point model."""
-
-    for t in TESTS:
-        ts = generate_timeseries(**TESTS[t])
-        pvals, cp = lapage_cpm(ts)
-
-        diagnostic_plot(ts, pvals, cp, f"tests/stat_tests/lepage/{t}.png")
-        cp_ = TESTS[t]["p1_length"]
-        assert abs(cp - cp_) < 10, f"Lepage CPM failed to detect correct changepoint. Result: {cp}, Truth: {cp_}"
+        ts = generate_timeseries(TESTS[t])
+        res = cpm_process_stream(ts, metric)
+        cps = res["changePoints"]
+        diagnostic_plot_2(ts, cps, f"tests/stat_tests/{metric}/{t}.png")
 
 
 if __name__ == "__main__":
-    test_lepage_cpm()
-    # test_cvm_cpm()
-    # test_ks_cpm()
+    for metric in ["Cramer-von-Mises", "Kolmogorov-Smirnov", "Lepage", "Mann-Whitney", "Mood"]:
+        test_cpm(metric)
