@@ -1,8 +1,26 @@
-import streamlit as st
 import folium
+import streamlit as st
+from data_retrieval import (
+    get_ams,
+    get_daily_values,
+    get_flow_stats,
+    get_monthly_values,
+    load_site_data,
+)
+from plots import (
+    plot_ams,
+    plot_ams_seasonal,
+    plot_daily_mean,
+    plot_flow_stats,
+    plot_lp3,
+    plot_monthly_mean,
+)
 from streamlit_folium import st_folium
-from plots import plot_ams, plot_flow_stats, plot_lp3, plot_ams_seasonal, plot_daily_mean, plot_monthly_mean
-from data_retrieval import get_ams, get_flow_stats, load_site_data, get_daily_values, get_monthly_values
+
+from tst.pages.changepoint import main
+from tst.start_r_server import start_server
+
+start_server()
 
 st.set_page_config(page_title="USGS Gage Data Viewer", layout="wide")
 
@@ -20,12 +38,24 @@ with st.sidebar:
             "AMS Seasonal Ranking",
             "Daily Mean Streamflow",
             "Monthly Mean Streamflow",
+            "Changepoint Analysis",
         ],
     )
 
 if st.session_state["gage_id"]:
     try:
-        site_data = load_site_data(st.session_state["gage_id"])
+        if st.session_state["gage_id"] == "testing":
+            site_data = {
+                "Site Number": "-99999",
+                "Station Name": "Wet River",
+                "Latitude": 45,
+                "Longitude": -103,
+                "Drainage Area": 0,
+                "HUC Code": 0,
+                "Elevation Datum": "NAVD88",
+            }
+        else:
+            site_data = load_site_data(st.session_state["gage_id"])
         lat, lon = site_data["Latitude"], site_data["Longitude"]
     except ValueError as e:
         lat, lon = None, None
@@ -117,5 +147,19 @@ if st.session_state["gage_id"]:
                 st.plotly_chart(plot_monthly_mean(data, st.session_state["gage_id"]), use_container_width=True)
             else:
                 st.error("No daily mean data available for this period.")
-        if data is not None:
-            st.dataframe(data)
+            if data is not None:
+                st.dataframe(data)
+
+        elif plot_type == "Changepoint Analysis":
+            main(st.session_state["gage_id"])
+            # data, missing_years = get_ams(st.session_state["gage_id"])
+            # if data is not None and "peak_va" in data.columns:
+            #     if missing_years:
+            #         st.warning(f"Missing {len(missing_years)} dates between {data.index.min()} and {data.index.max()}")
+            #     cpm = analyze_ts(data)
+            #     st.plotly_chart(plot_ams(data, st.session_state["gage_id"], cpm["cps"]), use_container_width=True)
+            #     st.plotly_chart(plot_cpm_heatmap(st.session_state["gage_id"], cpm["pval_df"]), use_container_width=True)
+            # else:
+            #     st.error("No peak flow data available.")
+            # if data is not None:
+            #     st.dataframe(data)

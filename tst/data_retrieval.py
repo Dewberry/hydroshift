@@ -1,16 +1,19 @@
-from dataretrieval import nwis
-import pandas as pd
-from dataretrieval import nwis, NoSitesError
 import logging
-from datetime import datetime
+
 import numpy as np
+import pandas as pd
 import scipy.stats as stats
+from dataretrieval import NoSitesError, nwis
+from scipy.stats import genpareto
 
 
 def get_ams(gage_id, return_lp3_stats=False):
     """Fetches Annual Maximum Series (AMS) peak flow data for a given gage."""
     try:
-        df = nwis.get_record(service="peaks", sites=[gage_id], ssl_check=False)
+        if gage_id == "testing":
+            df = fake_ams()
+        else:
+            df = nwis.get_record(service="peaks", sites=[gage_id], ssl_check=False)
     except NoSitesError:
         logging.warning(f"Peaks could not be found for gage id: {gage_id}")
         return None
@@ -133,3 +136,26 @@ def check_missing_dates(df, freq):
     missing_dates = full_range.difference(df.index if freq == "daily" else df["date"])
 
     return list(missing_dates)
+
+
+def fake_ams() -> pd.DataFrame:
+    """Generate a timeseries from two distributions."""
+    rs = 1
+    rvs = []
+    segments = [
+        {"length": 50, "loc": 1000, "scale": 50, "c": 0.1},
+        {"length": 50, "loc": 900, "scale": 500, "c": 0.5},
+        {"length": 50, "loc": 1000, "scale": 100, "c": 0.1},
+    ]
+    for s in segments:
+        length = s["length"]
+        params = {k: v for k, v in s.items() if k != "length"}
+        dist = genpareto(**params)
+        rvs.append(dist.rvs(size=length, random_state=rs))
+        rs += 1
+
+    rvs = np.concatenate(rvs, axis=0)
+    dates = pd.date_range(start="1900-01-01", periods=len(rvs), freq="YE")
+    water_year = dates.year
+    df = pd.DataFrame({"datetime": dates, "peak_va": rvs, "water_year": water_year}).set_index("datetime")
+    return df
