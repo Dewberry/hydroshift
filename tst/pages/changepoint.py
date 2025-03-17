@@ -1,11 +1,13 @@
 from collections import defaultdict
 from dataclasses import dataclass, field
+from io import BytesIO
 
 import pandas as pd
 import streamlit as st
 from data_retrieval import (
     get_ams,
 )
+from docx import Document
 from plots import combo_cpm
 
 from tst.stats.tests import cp_pvalue_batch, cpm_process_stream
@@ -177,7 +179,16 @@ def make_body():
         return
     st.header("Summary")
     st.markdown(cpa.summary_text)
-    st.plotly_chart(combo_cpm(cpa.data, cpa.pval_df, cpa.cp_dict), use_container_width=True)
+    combo_plot = combo_cpm(cpa.data, cpa.pval_df, cpa.cp_dict)
+    st.plotly_chart(combo_plot, use_container_width=True)
+    st.header("Changepoint detection")
+    st.markdown("Description of test performed")
+    st.markdown("Detailed results")
+    st.header("Modified flood frequency analysis")
+    st.markdown("Splitting the time series into windows of xyz, the resulting flood quantiles would be (plot).")
+
+    word_data = format_as_word()
+    st.download_button("Download analysis", word_data, f"changepoint_analysis_{st.session_state.gage_id}.docx")
 
 
 def warnings():
@@ -189,6 +200,15 @@ def warnings():
             )
     else:
         st.error("No peak flow data available.")
+
+
+def format_as_word():
+    document = Document()
+    document.add_paragraph("Rollin on the river.")
+
+    out = BytesIO()
+    document.save(out)
+    return out
 
 
 def main():
