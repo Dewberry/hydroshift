@@ -325,10 +325,10 @@ def combo_cpm(ams_df: pd.DataFrame, pval_df: pd.DataFrame, cps: dict = {}):
 
     # Add changepoint lines
     for cp, label in cps.items():
-        x = ams_df.index[cp]
+        # x = ams_df.index[cp]
         fig.add_trace(
             go.Scatter(
-                x=[x, x],
+                x=[cp, cp],
                 y=[ams_df["peak_va"].min(), ams_df["peak_va"].max()],
                 mode="lines",
                 line=dict(color="red", width=1, dash="dash"),
@@ -380,7 +380,7 @@ def combo_cpm(ams_df: pd.DataFrame, pval_df: pd.DataFrame, cps: dict = {}):
             tickvals=[0.05, 0.001],
             ticktext=["0.05", "0.001"],
         ),
-        title="Changepoint Analysis",
+        title="Figure 1. Statistical changepoint analysis.",
         legend_tracegroupgap=10,
         xaxis2=dict(title="Date"),
         yaxis=dict(title="Peak Flow"),  # Label for the y-axis of the first row

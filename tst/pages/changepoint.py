@@ -11,6 +11,7 @@ from docx import Document
 from plots import combo_cpm
 
 from tst.stats.tests import cp_pvalue_batch, cpm_process_stream
+from tst.text.changepoint import references, test_description
 
 VALID_ARL0S = [
     370,
@@ -132,6 +133,9 @@ def make_sidebar():
                 key="burn_in",
                 label_visibility="visible",
             )
+            st.text("Flood Frequency Analysis")
+            init_data = pd.DataFrame({"Regime Start": [], "Regime End": []})
+            st.data_editor(init_data, num_rows="dynamic", key="ffa_regimes")
 
 
 @st.cache_data
@@ -165,7 +169,7 @@ def get_changepoints(data: pd.DataFrame, arl0: int, burn_in: int) -> dict:
     for metric in METRICS:
         stream_res = cpm_process_stream(ts, metric, arl0, burn_in)
         for cp in stream_res["changePoints"]:
-            cp_dict[cp].append(metric)
+            cp_dict[data.index[cp]].append(metric)
     for cp in cp_dict:
         cp_dict[cp] = ", ".join(cp_dict[cp])
     return cp_dict
@@ -182,13 +186,26 @@ def make_body():
     combo_plot = combo_cpm(cpa.data, cpa.pval_df, cpa.cp_dict)
     st.plotly_chart(combo_plot, use_container_width=True)
     st.header("Changepoint detection")
-    st.markdown("Description of test performed")
-    st.markdown("Detailed results")
-    st.header("Modified flood frequency analysis")
-    st.markdown("Splitting the time series into windows of xyz, the resulting flood quantiles would be (plot).")
+    st.markdown(
+        test_description.format(st.session_state.arlo_slider, st.session_state.burn_in, st.session_state.burn_in)
+    )
+    if len(cpa.cp_dict) > 0:
+        changepoint_table()
+        st.text(references)
+    # st.header("Modified flood frequency analysis")
+    # st.markdown("Splitting the time series into windows of xyz, the resulting flood quantiles would be (plot).")
 
     word_data = format_as_word()
     st.download_button("Download analysis", word_data, f"changepoint_analysis_{st.session_state.gage_id}.docx")
+
+
+def changepoint_table():
+    cpa = st.session_state.changepoint
+    cpa_df = pd.DataFrame.from_dict(cpa.cp_dict, orient="index", columns=["Tests Identifying Change"])
+    st.table(cpa_df)
+    st.text(
+        "Table 1. Results of the changepoint analysis, listing dates when a significant change was identified for each test statistic."
+    )
 
 
 def warnings():
