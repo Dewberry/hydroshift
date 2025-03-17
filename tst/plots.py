@@ -1,6 +1,7 @@
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
+import streamlit as st
 from plotly.subplots import make_subplots
 
 
@@ -301,7 +302,8 @@ def plot_cpm_heatmap(pval_df: pd.DataFrame):
     return fig
 
 
-def combo_cpm(ams_df: pd.DataFrame, gage_id: int, pval_df: pd.DataFrame, cps: dict = {}):
+@st.cache_data
+def combo_cpm(ams_df: pd.DataFrame, pval_df: pd.DataFrame, cps: dict = {}):
     """Plot a change point model with peak flows and statistical analysis."""
 
     # Create subplots
