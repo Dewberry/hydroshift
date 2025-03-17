@@ -1,6 +1,5 @@
 from collections import defaultdict
 from dataclasses import dataclass, field
-from math import floor
 
 import pandas as pd
 import streamlit as st
@@ -38,9 +37,6 @@ METRICS = ["Cramer-von-Mises", "Kolmogorov-Smirnov", "Lepage", "Mann-Whitney", "
 
 @dataclass
 class ChangePointAnalysis:
-    gage_id: int
-    arl0: int = 1000
-    burn_in: int = 20
     data: dict = field(default_factory=pd.DataFrame)
     missing_years: int = 0
     pval_df: dict = None
@@ -80,15 +76,27 @@ class ChangePointAnalysis:
             """
         else:
             end_text = """an assumption of nonstationary conditions is likely reasonable."""
+        if len(self.cp_dict) == 1:
+            plural_text = "point was"
+        else:
+            plural_text = "points were"
         return (
             """
         There is **{}** evidence that the annual maximum series data at USGS gage {} are nonstationary in time. Four change
         point detection tests were completed to assess changes in the mean, variance, and overall distribution of flood
         peaks across the period of record. Significant change points were identified using a Type I error rate of 1 in
         {} and ignoring significant changes in the first and last {} years of data. {} statistically significant change
-        point(s) were identified, indicating that {}
+        {} identified, indicating that {}
         """
-        ).format(self.evidence_level, self.gage_id, self.arl0, self.burn_in, len(self.cp_dict), end_text)
+        ).format(
+            self.evidence_level,
+            st.session_state.gage_id,
+            st.session_state.arlo_slider,
+            st.session_state.burn_in,
+            len(self.cp_dict),
+            plural_text,
+            end_text,
+        )
 
 
 def define_variables():
@@ -105,21 +113,21 @@ def make_sidebar():
         st.title("Settings")
         st.session_state["gage_id"] = st.text_input("Enter USGS Gage Number:", st.session_state["gage_id"])
         if len(st.session_state.changepoint.data) > 0:
-            st.session_state.changepoint.arl0 = st.select_slider(
+            st.select_slider(
                 "False Positive Rate (1 in #)",
                 options=VALID_ARL0S,
-                value=st.session_state.changepoint.arl0,
+                value=1000,
                 key="arlo_slider",
                 label_visibility="visible",
             )
 
-            max_burnin = floor(len(st.session_state.changepoint.data) / 2)
-            st.session_state.changepoint.burn_in = st.number_input(
+            # max_burnin = floor(len(st.session_state.changepoint.data) / 2)
+            st.number_input(
                 "Burn-in Period",
                 0,
-                max_burnin,
-                st.session_state.changepoint.burn_in,
-                key="num",
+                100,
+                20,
+                key="burn_in",
                 label_visibility="visible",
             )
 
@@ -134,7 +142,7 @@ def run_analysis():
     st.toast("Running change point analysis...")
     cpa = st.session_state.changepoint
     cpa.pval_df = get_pvalues(cpa.data)
-    cpa.cp_dict = get_changepoints(cpa.data, cpa.arl0, cpa.burn_in)
+    cpa.cp_dict = get_changepoints(cpa.data, st.session_state.arlo_slider, st.session_state.burn_in)
     return None
 
 
@@ -162,8 +170,12 @@ def get_changepoints(data: pd.DataFrame, arl0: int, burn_in: int) -> dict:
 
 
 def make_body():
+    st.title(f"Changepoint Analysis for USGS Gage {st.session_state.gage_id}")
     warnings()
     cpa = st.session_state.changepoint
+    if len(cpa.data) == 0:
+        return
+    st.header("Summary")
     st.markdown(cpa.summary_text)
     st.plotly_chart(combo_cpm(cpa.data, cpa.pval_df, cpa.cp_dict), use_container_width=True)
 
@@ -183,10 +195,9 @@ def main():
     """Outline the page."""
     st.set_page_config(page_title="USGS Gage Changepoint Analysis", layout="wide")
     define_variables()
-    cpa = st.session_state.changepoint
-    gage_id = cpa.gage_id
-    cpa.data, cpa.missing_years = get_data(gage_id)
     make_sidebar()
+    cpa = st.session_state.changepoint
+    cpa.data, cpa.missing_years = get_data(st.session_state.gage_id)
     run_analysis()
     make_body()
 
