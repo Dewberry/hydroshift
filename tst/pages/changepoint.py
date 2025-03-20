@@ -70,6 +70,31 @@ class ChangePointAnalysis:
         elif test_count > 2:
             return "strong"
 
+    def get_change_windows(self, max_dist: float = 10):
+        """Find groups of cps that fall within a certain window of one another."""
+        groups = []
+        test_counts = []
+        dates = self.cp_dict.keys()
+        test_dict = {k: v.split(",") for k, v in self.cp_dict.items()}
+        current_group = [dates[0]]
+        current_group_tests = set(test_dict[dates[0]])
+
+        for i in range(1, len(dates)):
+            if (dates[i] - current_group[-1]).years < max_dist:  # 10 years in days
+                current_group.append(dates[i])
+                current_group_tests = current_group_tests.intersection(test_dict[dates[i]])
+            else:
+                groups.append(current_group)
+                test_counts.append(len(current_group_tests))
+                current_group = [dates[i]]
+                current_group_tests = set(test_dict[dates[i]])
+
+        if current_group:
+            groups.append(current_group)
+            test_counts.append(len(current_group_tests))
+
+        return groups, test_counts
+
     @property
     def summary_text(self):
         if self.nonstationary:
@@ -99,6 +124,15 @@ class ChangePointAnalysis:
             len(self.cp_dict),
             plural_text,
             end_text,
+        )
+
+    @property
+    def results_text(self):
+        """Write the results."""
+        # groups, test_counts = self.get_change_windows()
+        #   (How tightly clustered are they?  How many tests identified a change per window?)
+        return "This changepoint analysis identified {} statistically significant changepoints.".format(
+            len(self.cp_dict)
         )
 
 
@@ -134,8 +168,17 @@ def make_sidebar():
                 label_visibility="visible",
             )
             st.text("Flood Frequency Analysis")
-            init_data = pd.DataFrame({"Regime Start": [], "Regime End": []})
-            st.data_editor(init_data, num_rows="dynamic", key="ffa_regimes")
+            init_data = pd.DataFrame(columns=["Regime Start", "Regime End"])
+            init_data["Regime Start"] = pd.to_datetime(init_data["Regime Start"])
+            init_data["Regime End"] = pd.to_datetime(init_data["Regime End"])
+
+            col_config = st.column_config.DateColumn("Regime Start", format="D/M/YYYY")
+            st.data_editor(
+                init_data,
+                num_rows="dynamic",
+                key="ffa_regimes",
+                column_config={"Regime Start": col_config, "Regime End": col_config},
+            )
 
 
 @st.cache_data
@@ -175,6 +218,12 @@ def get_changepoints(data: pd.DataFrame, arl0: int, burn_in: int) -> dict:
     return cp_dict
 
 
+@st.cache_data
+def ffa_plot(data: pd.DataFrame, regimes: pd.DataFrame):
+    """Split the timeseries and plot the multiple series."""
+    return None
+
+
 def make_body():
     st.title(f"Changepoint Analysis for USGS Gage {st.session_state.gage_id}")
     warnings()
@@ -185,15 +234,28 @@ def make_body():
     st.markdown(cpa.summary_text)
     combo_plot = combo_cpm(cpa.data, cpa.pval_df, cpa.cp_dict)
     st.plotly_chart(combo_plot, use_container_width=True)
-    st.header("Changepoint detection")
+    st.header("Changepoint detection method")
     st.markdown(
         test_description.format(st.session_state.arlo_slider, st.session_state.burn_in, st.session_state.burn_in)
     )
+
     if len(cpa.cp_dict) > 0:
+        st.header("Changepoint detection results")
+        st.markdown(cpa.results_text)
         changepoint_table()
-        st.text(references)
-    # st.header("Modified flood frequency analysis")
-    # st.markdown("Splitting the time series into windows of xyz, the resulting flood quantiles would be (plot).")
+
+    st.header("Modified flood frequency analysis")
+    if len(st.session_state.ffa_regimes["added_rows"]) > 0:
+
+        st.table(st.session_state.ffa_regimes["added_rows"])
+        # st.plotly_chart(ffa_plot, use_container_width=True)
+        # st.markdown("Splitting the time series into windows of xyz, the resulting flood quantiles would be (plot).")
+    else:
+        st.info(
+            "To run pre- and post-changepoint flood frequency analyses, you can input timeseries ranges (regimes) in the flood frequency table on the sidebar.  You may add as many regimes as you think are appropriate, and the periods may overlap."
+        )
+
+    st.markdown(references)
 
     word_data = format_as_word()
     st.download_button("Download analysis", word_data, f"changepoint_analysis_{st.session_state.gage_id}.docx")
