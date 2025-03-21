@@ -8,8 +8,10 @@ from data_retrieval import (
     get_ams,
 )
 from docx import Document
-from plots import combo_cpm
+from docx.shared import Inches
+from plots import combo_cpm, plot_lp3
 
+from tst.data_retrieval import log_pearson_iii
 from tst.stats.tests import cp_pvalue_batch, cpm_process_stream
 from tst.text.changepoint import references, test_description
 
@@ -96,6 +98,24 @@ class ChangePointAnalysis:
         return groups, test_counts
 
     @property
+    def summary_plot(self):
+        """Create plotly plot to summarize analysis."""
+        return combo_cpm(self.data, self.pval_df, self.cp_dict)
+
+    @property
+    @st.cache_resource
+    def summary_png(self):
+        """Export summary plot to png in memory."""
+        bio = BytesIO()
+        self.summary_plot.write_image(file=bio, width=1000, height=600)
+        return bio
+
+    @property
+    def title(self):
+        """Descriptive title of this analysis."""
+        return f"Changepoint Analysis for USGS Gage {st.session_state.gage_id}"
+
+    @property
     def summary_text(self):
         if self.nonstationary:
             end_text = """
@@ -135,6 +155,49 @@ class ChangePointAnalysis:
             len(self.cp_dict)
         )
 
+    @property
+    def word_data(self):
+        """Export text as MS word."""
+        document = Document()
+        document.add_heading(self.title, level=1)
+        document.add_heading("Summary", level=2)
+        self.add_markdown_to_doc(document, self.summary_text)
+        document.add_picture(self.summary_png, width=Inches(6.5))
+        document.add_heading("Changepoint detection method", level=2)
+        self.add_markdown_to_doc(
+            document,
+            test_description.format(st.session_state.arlo_slider, st.session_state.burn_in, st.session_state.burn_in),
+        )
+        if len(self.cp_dict) > 0:
+            document.add_heading("Changepoint detection results", level=2)
+            self.add_markdown_to_doc(document, self.results_text)
+            document.add_table(rows=len(self.cp_dict), cols=2)
+
+        if len(st.session_state.ffa_regimes["added_rows"]) > 0:
+            document.add_heading("Modified flood frequency analysis", level=2)
+            t = document.add_table(rows=len(self.cp_dict) + 1, cols=2)
+            t.rows[0].cells[0].text = "Date"
+            t.rows[0].cells[1].text = "Tests identifying significant change"
+            for ind, k in enumerate(self.cp_dict, start=1):
+                t.rows[ind].cells[0].text = str(k)
+                t.rows[ind].cells[1].text = self.cp_dict[k]
+
+        document.add_heading("References", level=2)
+        self.add_markdown_to_doc(document, references)
+
+        out = BytesIO()
+        document.save(out)
+        return out
+
+    def add_markdown_to_doc(self, document: Document, text: str):
+        """Convert some elements of markdown to word format."""
+        text = text.replace("\n        ", "")
+        p = document.add_paragraph("")
+        bold = text.startswith("**")
+        for r in text.split("**"):
+            p.add_run(r).bold = bold
+            bold = not bold
+
 
 def define_variables():
     """Set up page state and get default variables."""
@@ -158,7 +221,6 @@ def make_sidebar():
                 label_visibility="visible",
             )
 
-            # max_burnin = floor(len(st.session_state.changepoint.data) / 2)
             st.number_input(
                 "Burn-in Period",
                 0,
@@ -219,21 +281,37 @@ def get_changepoints(data: pd.DataFrame, arl0: int, burn_in: int) -> dict:
 
 
 @st.cache_data
-def ffa_plot(data: pd.DataFrame, regimes: pd.DataFrame):
-    """Split the timeseries and plot the multiple series."""
-    return None
+def ffa_analysis(data: pd.DataFrame, regimes: list):
+    """Run multiple flood frequency analyses for different regimes."""
+    ffa_dict = {}
+    for r in regimes:
+        if "Regime Start" in r and "Regime End" in r:
+            sub = data.loc[r["Regime Start"] : r["Regime End"]]
+            peaks = sub["peak_va"]
+            lp3 = log_pearson_iii(peaks)
+            label = f'{r["Regime Start"]} - {r["Regime End"]}'
+            ffa_dict[label] = lp3
+    if len(ffa_dict) > 0:
+        ffa_plot = plot_lp3(ffa_dict, st.session_state.gage_id, multi_series=True)
+
+        ffa_df = pd.DataFrame.from_dict(ffa_dict, orient="index")
+        renames = {c: f"Q{c}" for c in ffa_df.columns}
+        ffa_df = ffa_df.rename(columns=renames)
+        return ffa_plot, ffa_df
+    else:
+        return None, None
 
 
 def make_body():
-    st.title(f"Changepoint Analysis for USGS Gage {st.session_state.gage_id}")
-    warnings()
     cpa = st.session_state.changepoint
+    st.title(cpa.title)
+    warnings()
     if len(cpa.data) == 0:
         return
+
     st.header("Summary")
     st.markdown(cpa.summary_text)
-    combo_plot = combo_cpm(cpa.data, cpa.pval_df, cpa.cp_dict)
-    st.plotly_chart(combo_plot, use_container_width=True)
+    st.plotly_chart(cpa.summary_plot, use_container_width=True)
     st.header("Changepoint detection method")
     st.markdown(
         test_description.format(st.session_state.arlo_slider, st.session_state.burn_in, st.session_state.burn_in)
@@ -246,24 +324,26 @@ def make_body():
 
     st.header("Modified flood frequency analysis")
     if len(st.session_state.ffa_regimes["added_rows"]) > 0:
-
-        st.table(st.session_state.ffa_regimes["added_rows"])
-        # st.plotly_chart(ffa_plot, use_container_width=True)
-        # st.markdown("Splitting the time series into windows of xyz, the resulting flood quantiles would be (plot).")
+        ffa_plot, ffa_df = ffa_analysis(cpa.data, st.session_state.ffa_regimes["added_rows"])
+        if ffa_plot is not None and ffa_df is not None:
+            st.plotly_chart(ffa_plot, use_container_width=True)
+            st.table(ffa_df)
     else:
         st.info(
             "To run pre- and post-changepoint flood frequency analyses, you can input timeseries ranges (regimes) in the flood frequency table on the sidebar.  You may add as many regimes as you think are appropriate, and the periods may overlap."
         )
 
+    st.header("References")
     st.markdown(references)
 
-    word_data = format_as_word()
-    st.download_button("Download analysis", word_data, f"changepoint_analysis_{st.session_state.gage_id}.docx")
+    st.download_button("Download analysis", cpa.word_data, f"changepoint_analysis_{st.session_state.gage_id}.docx")
 
 
 def changepoint_table():
     cpa = st.session_state.changepoint
     cpa_df = pd.DataFrame.from_dict(cpa.cp_dict, orient="index", columns=["Tests Identifying Change"])
+    cpa_df.index = cpa_df.index.date
+
     st.table(cpa_df)
     st.text(
         "Table 1. Results of the changepoint analysis, listing dates when a significant change was identified for each test statistic."
@@ -279,15 +359,6 @@ def warnings():
             )
     else:
         st.error("No peak flow data available.")
-
-
-def format_as_word():
-    document = Document()
-    document.add_paragraph("Rollin on the river.")
-
-    out = BytesIO()
-    document.save(out)
-    return out
 
 
 def main():

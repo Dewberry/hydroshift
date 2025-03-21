@@ -40,7 +40,7 @@ def plot_ams(ams_df, gage_id, cps: dict = {}):
             line=dict(color="red", width=1, dash="dash"),  # Dashed style
             hoverinfo="skip",  # Don't show hover on this trace
             showlegend=True,  # Hide the legend entry for this trace
-            name="Statistically Significant Changepoint",
+            name="Statistically\nSignificant\nChangepoint",
         )
     )
 
@@ -145,26 +145,29 @@ def plot_flow_stats(stats_df, gage_id):
     return fig
 
 
-def plot_lp3(lp3_data: dict, gage_id: str):
-    """
-    Creates a Plotly chart for Log-Pearson Type III return period vs. peak flow.
-    """
+def plot_lp3(lp3_data: dict | list, gage_id: str, multi_series: bool = False):
+    """Creates a Plotly chart for Log-Pearson Type III return period vs. peak flow."""
     # Convert dict to lists for plotting
-    return_periods = list(map(int, lp3_data.keys()))
-    peak_flows = list(lp3_data.values())
+    if not multi_series:
+        ris = lp3_data
+        lp3_data = {"Log-Pearson III Fit": ris}
 
     fig = go.Figure()
 
-    fig.add_trace(
-        go.Scatter(
-            x=return_periods,
-            y=peak_flows,
-            mode="markers+lines",
-            marker=dict(color="blue", size=8),
-            line=dict(color="blue", dash="solid"),
-            name="Log-Pearson III Fit",
+    for i in lp3_data:
+        ris = lp3_data[i]
+        return_periods = list(map(int, ris.keys()))
+        peak_flows = list(ris.values())
+        fig.add_trace(
+            go.Scatter(
+                x=return_periods,
+                y=peak_flows,
+                mode="markers+lines",
+                marker=dict(size=8),
+                line=dict(dash="solid"),
+                name=i,
+            )
         )
-    )
     fig.update_layout(
         title=f"{gage_id} | Log-Pearson Type III Estimates (No Regional Skew)",
         xaxis=dict(
@@ -182,10 +185,7 @@ def plot_lp3(lp3_data: dict, gage_id: str):
 
 
 def plot_ams_seasonal(df, gage_id):
-    """
-    Creates a scatter plot for AMS ranked flow with seasons.
-    """
-
+    """Creates a scatter plot for AMS ranked flow with seasons."""
     # Sort peak values and assign rank
     df = df.sort_values("peak_va").reset_index()
     df["rank"] = range(1, len(df) + 1)
@@ -211,9 +211,7 @@ def plot_ams_seasonal(df, gage_id):
 
 
 def plot_daily_mean(dv_df, gage_id):
-    """
-    Creates a Plotly line plot for daily mean streamflow values.
-    """
+    """Creates a Plotly line plot for daily mean streamflow values."""
     fig = go.Figure()
 
     fig.add_trace(
@@ -232,10 +230,7 @@ def plot_daily_mean(dv_df, gage_id):
 
 
 def plot_monthly_mean(monthly_df, gage_id):
-    """
-    Creates a Plotly line plot for monthly mean streamflow values.
-    """
-
+    """Creates a Plotly line plot for monthly mean streamflow values."""
     fig = go.Figure()
 
     fig.add_trace(
@@ -305,7 +300,6 @@ def plot_cpm_heatmap(pval_df: pd.DataFrame):
 @st.cache_data
 def combo_cpm(ams_df: pd.DataFrame, pval_df: pd.DataFrame, cps: dict = {}):
     """Plot a change point model with peak flows and statistical analysis."""
-
     # Create subplots
     fig = make_subplots(
         rows=2,
@@ -347,7 +341,7 @@ def combo_cpm(ams_df: pd.DataFrame, pval_df: pd.DataFrame, cps: dict = {}):
             y=[None],  # Invisible point for legend
             mode="lines",
             line=dict(color="red", width=1, dash="dash"),
-            name="Statistically Significant Changepoint",
+            name="Statistically\nSignificant\nChangepoint",
         )
     )
 
