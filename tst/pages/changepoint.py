@@ -1,7 +1,10 @@
+"""A tool to identify changepoints in hydrologic timeseries."""
+
 from collections import defaultdict
 from dataclasses import dataclass, field
 from io import BytesIO
 
+import numpy as np
 import pandas as pd
 import streamlit as st
 from data_retrieval import (
@@ -9,56 +12,38 @@ from data_retrieval import (
 )
 from docx import Document
 from docx.shared import Inches
+from plotly import graph_objects
 from plots import combo_cpm, plot_lp3
 
+from tst.consts import METRICS, VALID_ARL0S
 from tst.data_retrieval import log_pearson_iii
 from tst.stats.tests import cp_pvalue_batch, cpm_process_stream
 from tst.text.changepoint import references, test_description
 
-VALID_ARL0S = [
-    370,
-    500,
-    600,
-    700,
-    800,
-    900,
-    1000,
-    2000,
-    3000,
-    4000,
-    5000,
-    6000,
-    7000,
-    8000,
-    9000,
-    10000,
-    20000,
-    30000,
-    40000,
-    50000,
-]
-METRICS = ["Cramer-von-Mises", "Kolmogorov-Smirnov", "Lepage", "Mann-Whitney", "Mood"]
-
 
 @dataclass
 class ChangePointAnalysis:
+    """OOP representation of the changepoint analysis."""
+
     data: dict = field(default_factory=pd.DataFrame)
     missing_years: int = 0
     pval_df: dict = None
     cp_dict: dict = field(default_factory=dict)
 
     @property
-    def ts(self):
+    def ts(self) -> np.ndarray:
         """Timeseries from data."""
         return self.data["peak_va"].values
 
     @property
-    def nonstationary(self):
+    def nonstationary(self) -> bool:
+        """Whether or not a nonstationarity was identified."""
         # Update later
         return len(self.cp_dict) > 0
 
     @property
-    def evidence_level(self):
+    def evidence_level(self) -> str:
+        """Text representation of how many tests identified changepoints."""
         test_count = 0
         for cp in self.cp_dict:
             tmp = len(self.cp_dict[cp].split(","))
@@ -72,7 +57,7 @@ class ChangePointAnalysis:
         elif test_count > 2:
             return "strong"
 
-    def get_change_windows(self, max_dist: float = 10):
+    def get_change_windows(self, max_dist: float = 10) -> tuple:
         """Find groups of cps that fall within a certain window of one another."""
         groups = []
         test_counts = []
@@ -98,25 +83,34 @@ class ChangePointAnalysis:
         return groups, test_counts
 
     @property
-    def summary_plot(self):
+    def summary_plot(self) -> graph_objects:
         """Create plotly plot to summarize analysis."""
         return combo_cpm(self.data, self.pval_df, self.cp_dict)
 
     @property
     @st.cache_resource
-    def summary_png(self):
+    def summary_png(self) -> BytesIO:
         """Export summary plot to png in memory."""
         bio = BytesIO()
-        self.summary_plot.write_image(file=bio, width=1000, height=600)
+        self.summary_plot.write_image(file=bio, width=1100, height=600)
         return bio
 
     @property
-    def title(self):
+    @st.cache_resource
+    def cp_df(self):
+        """Get a dataframe representing changepoints identified in the streaming analysis."""
+        cpa_df = pd.DataFrame.from_dict(self.cp_dict, orient="index", columns=["Tests Identifying Change"])
+        cpa_df.index = cpa_df.index.date
+        return cpa_df
+
+    @property
+    def title(self) -> str:
         """Descriptive title of this analysis."""
         return f"Changepoint Analysis for USGS Gage {st.session_state.gage_id}"
 
     @property
-    def summary_text(self):
+    def summary_text(self) -> str:
+        """A text summary of the changepoint analysis."""
         if self.nonstationary:
             end_text = """
             factors such as land use changes, climate change, or flow regulation (reservoirs,
@@ -147,8 +141,8 @@ class ChangePointAnalysis:
         )
 
     @property
-    def results_text(self):
-        """Write the results."""
+    def results_text(self) -> str:
+        """A detailed description of the results."""
         # groups, test_counts = self.get_change_windows()
         #   (How tightly clustered are they?  How many tests identified a change per window?)
         return "This changepoint analysis identified {} statistically significant changepoints.".format(
@@ -156,7 +150,7 @@ class ChangePointAnalysis:
         )
 
     @property
-    def word_data(self):
+    def word_data(self) -> BytesIO:
         """Export text as MS word."""
         document = Document()
         document.add_heading(self.title, level=1)
@@ -171,16 +165,17 @@ class ChangePointAnalysis:
         if len(self.cp_dict) > 0:
             document.add_heading("Changepoint detection results", level=2)
             self.add_markdown_to_doc(document, self.results_text)
-            document.add_table(rows=len(self.cp_dict), cols=2)
-
-        if len(st.session_state.ffa_regimes["added_rows"]) > 0:
-            document.add_heading("Modified flood frequency analysis", level=2)
             t = document.add_table(rows=len(self.cp_dict) + 1, cols=2)
             t.rows[0].cells[0].text = "Date"
             t.rows[0].cells[1].text = "Tests identifying significant change"
             for ind, k in enumerate(self.cp_dict, start=1):
                 t.rows[ind].cells[0].text = str(k)
                 t.rows[ind].cells[1].text = self.cp_dict[k]
+            t.style = "Colorful List"
+
+        # if len(st.session_state.ffa_regimes["added_rows"]) > 0:
+        #     document.add_heading("Modified flood frequency analysis", level=2)
+        #     t = document.add_table(rows=len(self.cp_dict) + 1, cols=2)
 
         document.add_heading("References", level=2)
         self.add_markdown_to_doc(document, references)
@@ -245,12 +240,12 @@ def make_sidebar():
 
 @st.cache_data
 def get_data(gage_id: int):
-    print("getting data")
+    """Cache results of get_ams."""
     return get_ams(gage_id)
 
 
 def run_analysis():
-    st.toast("Running change point analysis...")
+    """Run the change point model analysis."""
     cpa = st.session_state.changepoint
     cpa.pval_df = get_pvalues(cpa.data)
     cpa.cp_dict = get_changepoints(cpa.data, st.session_state.arlo_slider, st.session_state.burn_in)
@@ -259,7 +254,7 @@ def run_analysis():
 
 @st.cache_data
 def get_pvalues(data: pd.DataFrame) -> pd.DataFrame:
-    print("getting p values")
+    """Get pvalue df associated with changepoint analysis."""
     ts = data["peak_va"].values
     pval_df = data[[]].copy()
     for metric in METRICS:
@@ -269,6 +264,7 @@ def get_pvalues(data: pd.DataFrame) -> pd.DataFrame:
 
 @st.cache_data
 def get_changepoints(data: pd.DataFrame, arl0: int, burn_in: int) -> dict:
+    """Run the process stream analysis and return changepoints identified."""
     ts = data["peak_va"].values
     cp_dict = defaultdict(list)
     for metric in METRICS:
@@ -303,6 +299,7 @@ def ffa_analysis(data: pd.DataFrame, regimes: list):
 
 
 def make_body():
+    """Assemble main app body."""
     cpa = st.session_state.changepoint
     st.title(cpa.title)
     warnings()
@@ -320,7 +317,10 @@ def make_body():
     if len(cpa.cp_dict) > 0:
         st.header("Changepoint detection results")
         st.markdown(cpa.results_text)
-        changepoint_table()
+        st.table(cpa.cp_df)
+        st.text(
+            "Table 1. Results of the changepoint analysis, listing dates when a significant change was identified for each test statistic."
+        )
 
     st.header("Modified flood frequency analysis")
     if len(st.session_state.ffa_regimes["added_rows"]) > 0:
@@ -337,17 +337,6 @@ def make_body():
     st.markdown(references)
 
     st.download_button("Download analysis", cpa.word_data, f"changepoint_analysis_{st.session_state.gage_id}.docx")
-
-
-def changepoint_table():
-    cpa = st.session_state.changepoint
-    cpa_df = pd.DataFrame.from_dict(cpa.cp_dict, orient="index", columns=["Tests Identifying Change"])
-    cpa_df.index = cpa_df.index.date
-
-    st.table(cpa_df)
-    st.text(
-        "Table 1. Results of the changepoint analysis, listing dates when a significant change was identified for each test statistic."
-    )
 
 
 def warnings():

@@ -363,23 +363,27 @@ def combo_cpm(ams_df: pd.DataFrame, pval_df: pd.DataFrame, cps: dict = {}):
 
     # Update layout
     fig.update_layout(
-        coloraxis=dict(colorscale=custom_color_scale, cmin=0.05, cmax=0.001),  # Custom color scale
+        coloraxis=dict(colorscale=custom_color_scale, cmin=0.05, cmax=0.001),
         coloraxis_colorbar=dict(
-            title="P-Value",  # Colorbar title
-            x=1.05,  # Move the colorbar slightly to the right (adjust as needed)
-            y=0.01,  # Set vertical position (50% of the figure height)
-            len=0.35,
-            xanchor="left",  # Anchor the colorbar to the left of the position
-            yanchor="bottom",  # Anchor the colorbar to the middle vertically
+            orientation="h",
+            yanchor="bottom",
+            y=0.96,
+            xanchor="right",
+            x=0.94,
+            len=0.3,
+            thickness=0.5,
+            xpad=0,
+            ypad=0,
+            title=dict(side="top", text="P-Value"),
             tickvals=[0.05, 0.001],
             ticktext=["0.05", "0.001"],
         ),
         title="Figure 1. Statistical changepoint analysis.",
         legend_tracegroupgap=10,
         xaxis2=dict(title="Date"),
-        yaxis=dict(title="Peak Flow"),  # Label for the y-axis of the first row
-        yaxis2=dict(title="Statistical Test"),  # Label for the y-axis of the second row
-        legend=dict(x=1.05, y=0.99, xanchor="left", yanchor="top"),  # Move legend to the left  # Align to top
+        yaxis=dict(title="Peak Flow"),
+        yaxis2=dict(title="Statistical Test"),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0),
         height=600,
     )
 

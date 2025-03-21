@@ -1,3 +1,5 @@
+"""Storage for large blocks of changepoint app text."""
+
 test_description = """
 A changepoint analysis was performed on the series of annual flood peaks Using the change point model of Ross (2015). For each date in the timeseries, the distribution of flood peaks leading up to that date were compared with the distribution after that date using a variety of statistical tests
 
