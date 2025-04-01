@@ -7,7 +7,7 @@ import time
 import psutil
 import requests
 
-from tst.consts import R_SERVER_PORT
+from hydroshift.consts import R_SERVER_PORT
 
 
 def server_running(port: str) -> bool:

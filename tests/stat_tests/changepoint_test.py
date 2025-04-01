@@ -5,7 +5,7 @@ import numpy as np
 from scipy.ndimage import gaussian_filter1d
 from scipy.stats import genpareto
 
-from tst.stats.tests import (
+from hydroshift.stats.tests import (
     cpm_detect_change_point_batch,
     cpm_process_stream,
     get_batch_threshold,

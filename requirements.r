@@ -1,0 +1,5 @@
+install.packages("languageserver")
+install.packages("httpgd")
+install.packages("plyr")
+install.packages("plumber")
+install.packages("optparse")

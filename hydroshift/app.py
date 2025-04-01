@@ -17,8 +17,8 @@ from plots import (
 )
 from streamlit_folium import st_folium
 
-from tst.pages.changepoint import main
-from tst.rserver.start_r_server import start_server
+from hydroshift.pages.changepoint import main
+from hydroshift.rserver.start_r_server import start_server
 
 start_server()
 

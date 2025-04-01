@@ -6,8 +6,8 @@ import numpy as np
 import pandas as pd
 import requests
 
-from tst.consts import R_SERVER_URL
-from tst.rserver.start_r_server import start_server
+from hydroshift.consts import R_SERVER_URL
+from hydroshift.rserver.start_r_server import start_server
 
 
 def cpm_process_stream(x: np.ndarray, cpm_type: str, arl0: int = 1000, burn_in: int = 20) -> dict:

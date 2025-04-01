@@ -15,10 +15,10 @@ from docx.shared import Inches
 from plotly import graph_objects
 from plots import combo_cpm, plot_lp3
 
-from tst.consts import METRICS, VALID_ARL0S
-from tst.data_retrieval import log_pearson_iii
-from tst.stats.tests import cp_pvalue_batch, cpm_process_stream
-from tst.text.changepoint import references, test_description
+from hydroshift.consts import METRICS, VALID_ARL0S
+from hydroshift.data_retrieval import log_pearson_iii
+from hydroshift.stats.tests import cp_pvalue_batch, cpm_process_stream
+from hydroshift.text.changepoint import references, test_description
 
 
 @dataclass

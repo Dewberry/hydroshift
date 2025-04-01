@@ -1,0 +1,23 @@
+[project]
+name = "hydroshift"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "dataretrieval==1.0.11",
+    "folium==0.19.4",
+    "matplotlib>=3.10.1",
+    "pandas==2.2.3",
+    "plotly==6.0.0",
+    "psutil>=7.0.0",
+    "python-docx>=1.1.2",
+    "radian>=0.6.13",
+    "scipy==1.15.2",
+    "streamlit==1.42.2",
+    "streamlit-folium==0.24.0",
+]
+
+[tool.setuptools.packages.find]
+include = ["hydroshift*"]
+namespaces = false

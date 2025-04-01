@@ -1,0 +1,8 @@
+{
+	"name": "hydroshift",
+	"build": {
+		"dockerfile": "Dockerfile",
+		"context": ".."
+	},
+	// "appPort": [8501]
+  }
