@@ -7,6 +7,7 @@ requires-python = ">=3.12"
 dependencies = [
     "dataretrieval==1.0.11",
     "folium==0.19.4",
+    "kaleido==0.2.0",
     "matplotlib>=3.10.1",
     "pandas==2.2.3",
     "plotly==6.0.0",

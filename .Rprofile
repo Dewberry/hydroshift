@@ -1,1 +1,1 @@
-setwd("Rscripts")
+source("renv/activate.R")

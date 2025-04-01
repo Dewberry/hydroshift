@@ -1,3 +1,7 @@
+# .dockerignore
+
+# Environment
 .venv
-*.png
-*Dockerfile
+renv
+!renv/settings.json
+!renv/activate.R

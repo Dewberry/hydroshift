@@ -36,7 +36,7 @@ def start_server():
     if server_running(R_SERVER_PORT):
         return
 
-    process = subprocess.Popen(["Rscript", starter_path, r_server_path, R_SERVER_PORT])
+    process = subprocess.Popen(["Rscript", starter_path, r_server_path, str(R_SERVER_PORT)])
     pid = process.pid
     atexit.register(lambda: stop_server(pid))
 

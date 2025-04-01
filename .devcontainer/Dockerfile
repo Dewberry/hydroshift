@@ -1,6 +1,6 @@
 FROM ubuntu:latest
 
-RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates r-base libxml2 libxml2-dev libfontconfig1-dev libtiff-dev libcurl4-openssl-dev libsodium-dev python3.12 python3.12-venv python3-pip
+RUN apt-get update && apt-get install -y --no-install-recommends git curl ca-certificates r-base build-essential libxml2 libxml2-dev libfontconfig1-dev libtiff-dev libcurl4-openssl-dev libsodium-dev python3.12 python3.12-venv python3-pip
 
 WORKDIR /server
 
@@ -14,13 +14,19 @@ COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-install-project
 
 # Install R dependencies
-COPY requirements.r ./
-RUN Rscript requirements.r
+RUN R -e "install.packages('renv', repos = c(CRAN = 'https://cloud.r-project.org'))"
+COPY renv.lock renv.lock
+RUN mkdir -p renv
+COPY .Rprofile .Rprofile
+COPY renv/activate.R renv/activate.R
+COPY renv/settings.json renv/settings.json
+RUN R -e "renv::restore()"
 
+# Copy project files
 COPY . .
 
 # Install the app
-RUN uv pip install .
+RUN uv pip install -e .
 
 # Start the server
-# RUN uv run hydroshift/app.py --server.port 8501 --server.headless true
+RUN streamlit run hydroshift/app.py --server.port 8501 --server.headless true
