@@ -9,10 +9,6 @@ ADD https://astral.sh/uv/install.sh /uv-installer.sh
 RUN sh /uv-installer.sh && rm /uv-installer.sh
 ENV PATH="/root/.local/bin/:$PATH"
 
-# Install python dependencies
-COPY pyproject.toml uv.lock ./
-RUN uv sync --frozen --no-install-project
-
 # Install R dependencies
 RUN R -e "install.packages('renv', repos = c(CRAN = 'https://cloud.r-project.org'))"
 COPY renv.lock renv.lock
@@ -22,6 +18,11 @@ COPY renv/activate.R renv/activate.R
 COPY renv/settings.json renv/settings.json
 RUN R -e "renv::restore()"
 
+# Install python dependencies
+COPY pyproject.toml uv.lock ./
+RUN uv venv .venv
+RUN uv sync --frozen --no-install-project
+
 # Copy project files
 COPY . .
 
@@ -29,4 +30,4 @@ COPY . .
 RUN uv pip install -e .
 
 # Start the server
-RUN streamlit run hydroshift/app.py --server.port 8501 --server.headless true
+# RUN uv run streamlit run hydroshift/app.py --server.port 8501 --server.headless true
