@@ -1,15 +1,15 @@
 import folium
 import streamlit as st
 from streamlit_folium import st_folium
-
 from hydroshift.pages.changepoint import main
 from hydroshift.rserver.start_r_server import start_server
 
 start_server()
 
-st.set_page_config(page_title="HydroShift: USGS Gage Viewer", layout="wide")
+st.set_page_config(page_title="HydroShift", layout="wide")
 
-# CSS too remove sidebar from landing page
+
+# CSS to remove sidebar from landing page
 hide_sidebar_style = """
     <style>
         [data-testid="stSidebar"] {
@@ -21,7 +21,6 @@ hide_sidebar_style = """
     </style>
 """
 st.markdown(hide_sidebar_style, unsafe_allow_html=True)
-
 
 left_col, right_col = st.columns([2, 1])
 
@@ -46,13 +45,9 @@ with left_col:
 
     if submit and gage_input:
         st.session_state["gage_id"] = gage_input
-        st.switch_page('pages/summary_page.py')
+        st.switch_page('pages/gage_summary.py')
     if demo:
         st.session_state["gage_id"] = "12105900"
-        st.switch_page('pages/summary_page.py')
+        st.switch_page('pages/gage_summary.py')
 with right_col:
-    st.image("/workspaces/non-stationarity-tool/hydroshift/conus_usgs_map.png")
-
-
-
-# st.session_state["gage_id"] = "12105900"
+    st.image("/workspaces/non-stationarity-tool/hydroshift/images/conus_usgs_map.png")
