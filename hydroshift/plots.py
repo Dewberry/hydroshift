@@ -18,31 +18,32 @@ def plot_ams(ams_df, gage_id, cps: dict = {}):
             name="Peak Flow",
         )
     )
-    for ind, cp in enumerate(cps):
-        x = ams_df.index[cp]
+    if cps:
+        for ind, cp in enumerate(cps):
+            x = ams_df.index[cp]
+            fig.add_trace(
+                go.Scatter(
+                    x=[x, x],
+                    y=[ams_df["peak_va"].min(), ams_df["peak_va"].max()],
+                    mode="lines",
+                    line=dict(color="red", width=1, dash="dash"),
+                    hovertext=[cps[cp], cps[cp]],
+                    hoverinfo="text",
+                    showlegend=False,
+                )
+            )
+        # Label line
         fig.add_trace(
             go.Scatter(
-                x=[x, x],
-                y=[ams_df["peak_va"].min(), ams_df["peak_va"].max()],
+                x=[0, 0],
+                y=[0, 0],
                 mode="lines",
-                line=dict(color="red", width=1, dash="dash"),
-                hovertext=[cps[cp], cps[cp]],
-                hoverinfo="text",
-                showlegend=False,
+                line=dict(color="red", width=1, dash="dash"),  # Dashed style
+                hoverinfo="skip",  # Don't show hover on this trace
+                showlegend=True,  # Hide the legend entry for this trace
+                name="Statistically\nSignificant\nChangepoint",
             )
         )
-    # Label line
-    fig.add_trace(
-        go.Scatter(
-            x=[0, 0],
-            y=[0, 0],
-            mode="lines",
-            line=dict(color="red", width=1, dash="dash"),  # Dashed style
-            hoverinfo="skip",  # Don't show hover on this trace
-            showlegend=True,  # Hide the legend entry for this trace
-            name="Statistically\nSignificant\nChangepoint",
-        )
-    )
 
     # Update layout
     fig.update_layout(
@@ -195,7 +196,7 @@ def plot_ams_seasonal(df, gage_id):
         x="rank",
         y="peak_va",
         color="season",
-        title=f"Gage ID: {gage_id} | Flow Ranked from Low to High",
+        title=f"Gage ID: {gage_id} | Seasonal AMS Ranked from Low to High",
         labels={"rank": "Rank", "peak_va": "Flow (cfs)"},
         color_discrete_map={"Winter": "blue", "Spring": "green", "Summer": "orange", "Fall": "brown"},
     )
