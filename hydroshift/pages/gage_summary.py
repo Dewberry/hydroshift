@@ -21,18 +21,18 @@ from streamlit_folium import st_folium
 with st.sidebar:
     st.title("Settings")
     st.session_state["gage_id"] = st.text_input("Enter USGS Gage Number:", st.session_state["gage_id"])
-    plot_type = st.selectbox(
-        "Select Data to Plot:",
-        [
-            "Annual Peak Flow (AMS)",
-            "Daily Flow Statistics",
-            "Log-Pearson III (LP3) Analysis",
-            "AMS Seasonal Ranking",
-            "Daily Mean Streamflow",
-            "Monthly Mean Streamflow",
-            "Changepoint Analysis",
-        ],
-    )
+
+
+    # Toggle plots
+    st.markdown("### Toggle Plots")
+    show_ams = st.checkbox("Annual Peak Flow (AMS)", value=True)
+    show_daily_stats = st.checkbox("Daily Flow Statistics", value=True)
+    show_lp3 = st.checkbox("Log-Pearson III (LP3) Analysis", value=True)
+    show_ams_seasonal = st.checkbox("AMS Seasonal Ranking", value=True)
+    show_daily_mean = st.checkbox("Daily Mean Streamflow", value=True)
+    show_monthly_mean = st.checkbox("Monthly Mean Streamflow", value=True)
+    #show_changepoint = st.checkbox("Changepoint Analysis", value=False)
+
 
 if st.session_state["gage_id"]:
     try:
@@ -81,69 +81,78 @@ if st.session_state["gage_id"]:
                 unsafe_allow_html=True,
             )
 
-    with col2:  # Center column
-        if plot_type == "Annual Peak Flow (AMS)":
+    with col2:  # Center column for plots
+        if show_ams:
             data, missing_years = get_ams(st.session_state["gage_id"])
             if data is not None and "peak_va" in data.columns:
                 if missing_years:
-                    st.warning(f"Missing {len(missing_years)} dates between {data.index.min()} and {data.index.max()}")
+                    st.warning(f"Missing {len(missing_years)} AMS records")
                 st.plotly_chart(plot_ams(data, st.session_state["gage_id"]), use_container_width=True)
-            else:
-                st.error("No peak flow data available.")
+                show_data = st.checkbox("Show AMS Data Table")
+                if show_data:
+                    st.dataframe(data)
 
-        elif plot_type == "Daily Flow Statistics":
+        if show_daily_stats:
             data = get_flow_stats(st.session_state["gage_id"])
             if data is not None and "mean_va" in data.columns:
                 st.plotly_chart(plot_flow_stats(data, st.session_state["gage_id"]), use_container_width=True)
-            else:
-                st.error("No flow statistics available.")
+                show_data = st.checkbox("Show Daily Stats Data Table")
+                if show_data:
+                    st.dataframe(data)
 
-        elif plot_type == "Log-Pearson III (LP3) Analysis":
+        if show_lp3:
             data, missing_years = get_ams(st.session_state["gage_id"], True)
             if data is not None:
                 if missing_years:
-                    st.warning(f"Missing {len(missing_years)} dates between {data.index.min()} and {data.index.max()}")
+                    st.warning(f"Missing {len(missing_years)} LP3 records")
                 st.plotly_chart(plot_lp3(data, st.session_state["gage_id"]), use_container_width=True)
-            else:
-                st.error("No LP3 data available.")
-
-        elif plot_type == "AMS Seasonal Ranking":
+                show_data = st.checkbox("Show LP3 Data Table")
+                if show_data:
+                    st.dataframe(data)
+        if show_ams_seasonal:
             data, missing_years = get_ams(st.session_state["gage_id"])
             if data is not None and "peak_va" in data.columns:
                 if missing_years:
-                    st.warning(f"Missing {len(missing_years)} dates between {data.index.min()} and {data.index.max()}")
+                    st.warning(f"Missing {len(missing_years)} AMS seasonal records")
                 st.plotly_chart(plot_ams_seasonal(data, st.session_state["gage_id"]), use_container_width=True)
-            else:
-                st.error("No AMS seasonal data available.")
+                show_data = st.checkbox("Show Ranked Seasonal Data Table")
+                if show_data:
+                    st.dataframe(data)
 
-        elif plot_type == "Daily Mean Streamflow":
-            start_date = st.sidebar.text_input("Enter Start Date (YYYY-MM-DD)", "2024-01-01")
-            end_date = st.sidebar.text_input("Enter End Date (YYYY-MM-DD)", "2024-12-31")
+        if show_daily_mean:
+            plot_col, input_col = st.columns([8, 2])
+
+            with input_col:
+                st.write("") #blank line for more space
+                st.write("Daily Mean Input Dates")
+                start_date = st.text_input("Start Date (YYYY-MM-DD)", "2024-01-01")
+                end_date = st.text_input("End Date (YYYY-MM-DD)", "2024-12-31")
 
             data, missing_dates = get_daily_values(st.session_state["gage_id"], start_date, end_date)
+            with plot_col:
+                if data is not None:
+                    if missing_dates:
+                        st.warning(f"Missing {len(missing_dates)} daily mean records")
+                    st.plotly_chart(plot_daily_mean(data, st.session_state["gage_id"]), use_container_width=True)
+                    show_data = st.checkbox("Show Daily Mean Data Table")
+                    if show_data:
+                        st.dataframe(data)
 
-            if data is not None:
-                if missing_dates:
-                    st.warning(f"Missing {len(missing_dates)} dates between {data.index.min()} and {data.index.max()}")
-                st.plotly_chart(plot_daily_mean(data, st.session_state["gage_id"]), use_container_width=True)
-            else:
-                st.error("No daily mean data available for this period.")
-
-        elif plot_type == "Monthly Mean Streamflow":
+        if show_monthly_mean:
             data, missing_dates = get_monthly_values(st.session_state["gage_id"])
             if data is not None and "mean_va" in data.columns:
                 if missing_dates:
-                    st.warning(
-                        f"Missing {len(missing_dates)} dates between {data['date'].min()} and {data['date'].max()}"
-                    )
+                    st.warning(f"Missing {len(missing_dates)} monthly records")
                 st.plotly_chart(plot_monthly_mean(data, st.session_state["gage_id"]), use_container_width=True)
-            else:
-                st.error("No daily mean data available for this period.")
-            if data is not None:
-                st.dataframe(data)
 
-        elif plot_type == "Changepoint Analysis":
-            main(st.session_state["gage_id"])
+                show_data = st.checkbox("Show Monthly Mean Data Table")
+                if show_data:
+                    st.dataframe(data)
+
+        # if show_changepoint:
+        #     main(st.session_state["gage_id"])
+
+
             # data, missing_years = get_ams(st.session_state["gage_id"])
             # if data is not None and "peak_va" in data.columns:
             #     if missing_years:
