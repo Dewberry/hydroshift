@@ -61,15 +61,15 @@ class ChangePointAnalysis:
         """Find groups of cps that fall within a certain window of one another."""
         groups = []
         test_counts = []
-        dates = self.cp_dict.keys()
+        dates = list(self.cp_dict.keys())
         test_dict = {k: v.split(",") for k, v in self.cp_dict.items()}
         current_group = [dates[0]]
         current_group_tests = set(test_dict[dates[0]])
 
         for i in range(1, len(dates)):
-            if (dates[i] - current_group[-1]).years < max_dist:  # 10 years in days
+            if ((dates[i] - current_group[-1]).days / 365) < max_dist:  # 10 years in days
                 current_group.append(dates[i])
-                current_group_tests = current_group_tests.intersection(test_dict[dates[i]])
+                current_group_tests = current_group_tests.union(test_dict[dates[i]])
             else:
                 groups.append(current_group)
                 test_counts.append(len(current_group_tests))
@@ -81,6 +81,25 @@ class ChangePointAnalysis:
             test_counts.append(len(current_group_tests))
 
         return groups, test_counts
+
+    def get_max_pvalue(self):
+        """Get the minimum p value where all tests agree and count how often that occurred."""
+        all_tests = self.pval_df.fillna(1).max(axis=1).to_frame(name="pval")
+        all_tests["run"] = ((all_tests != all_tests.shift(1)) * 1).cumsum()
+        for ind, r in all_tests.groupby("pval").agg({"run": pd.Series.nunique}).sort_index().iterrows():
+            if r.run > 0:
+                min_p = ind
+                count = r.run
+                break
+        return min_p, count
+
+    def num_2_word(self, number: int) -> str:
+        """Convert numbers less than 10 to words."""
+        if number > 9:
+            return number
+        else:
+            d = {1: "one", 2: "two", 3: "three", 4: "four", 5: "five", 6: "six", 7: "seven", 8: "eight", 9: "nine"}
+            return d[number]
 
     @property
     def summary_plot(self) -> graph_objects:
@@ -113,11 +132,11 @@ class ChangePointAnalysis:
         """A text summary of the changepoint analysis."""
         if self.nonstationary:
             end_text = """
-            factors such as land use changes, climate change, or flow regulation (reservoirs,
-            industrial processes, etc) may be influencing flow patterns at this site.
+            some form of nonstationarity (e.g., land use change, climate change, flow regulation, etc) may be influencing flow patterns at this site.
             """
         else:
             end_text = """an assumption of nonstationary conditions is likely reasonable."""
+        cp_count = self.num_2_word(len(self.cp_dict))
         if len(self.cp_dict) == 1:
             plural_text = "point was"
         else:
@@ -135,7 +154,7 @@ class ChangePointAnalysis:
             st.session_state.gage_id,
             st.session_state.arlo_slider,
             st.session_state.burn_in,
-            len(self.cp_dict),
+            cp_count,
             plural_text,
             end_text,
         )
@@ -143,11 +162,47 @@ class ChangePointAnalysis:
     @property
     def results_text(self) -> str:
         """A detailed description of the results."""
-        # groups, test_counts = self.get_change_windows()
-        #   (How tightly clustered are they?  How many tests identified a change per window?)
-        return "This changepoint analysis identified {} statistically significant changepoints.".format(
-            len(self.cp_dict)
+        # Static analysis
+        min_p, p_count = self.get_max_pvalue()
+        if min_p == 0.001:
+            evidence = "strong"
+        elif min_p == 0.005:
+            evidence = "moderate"
+        elif min_p < 1:
+            evidence = "minor"
+        else:
+            evidence = "no"
+        if p_count > 1:
+            plural = "s"
+        else:
+            plural = ""
+        p1 = """
+            The static changepoint test showed {} evidence of a changepoint in the timeseries.  A minimum p-value of {}
+            was obtained at {} contiguous time period{}.  The p-value reflects the probability that the distribution of
+            flood peaks before that date has the **same** distribution as the flood peaks after the date.
+        """.format(
+            evidence, min_p, self.num_2_word(p_count), plural
         )
+
+        # Streaming analysis
+        if len(self.cp_dict) == 1:
+            p2 = """
+            The streaming analysis identified one statistically significant changepoint. This changepoint was identified
+            by {} distinct tests: {}."""
+        else:
+            groups, test_counts = self.get_change_windows()
+            if len(groups) > 0:
+                plural = "s"
+            else:
+                plural = ""
+            p2 = """
+            The streaming analysis identified {} statistically significant changepoints. These changepoints broadly fell
+            into {} window{} where tests identified changepoints not more than 10 years apart. For a full summary of which
+            tests identified changes at which dates, see table 2.
+            """.format(
+                self.num_2_word(len(self.cp_dict)), self.num_2_word(len(groups)), plural
+            )
+        return "\n\n".join([p1, p2])
 
     @property
     def word_data(self) -> BytesIO:
@@ -317,10 +372,11 @@ def make_body():
         if len(cpa.cp_dict) > 0:
             st.header("Changepoint detection results")
             st.markdown(cpa.results_text)
-            st.table(cpa.cp_df)
-            st.text(
-                "Table 1. Results of the changepoint analysis, listing dates when a significant change was identified for each test statistic."
-            )
+            if len(cpa.cp_dict) > 1:
+                st.table(cpa.cp_df)
+                st.text(
+                    "**Table 1. Results of the changepoint analysis, listing dates when a significant change was identified for each test statistic.**"
+                )
 
         st.header("Modified flood frequency analysis")
         if len(st.session_state.ffa_regimes["added_rows"]) > 0:

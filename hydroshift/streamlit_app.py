@@ -17,9 +17,10 @@ def homepage():
         st.subheader("USGS Streamflow Change Detection Tool")
         st.markdown(
             """
-        Hydroshift is a web app for exploring long-term trends in streamflow data from USGS gaging stations.
-        This tool provides interactive plots of annual peak flows, seasonal patterns, daily and monthly trends,
-        and changepoint analysis to detect shifts in hydrologic behavior.
+        **HydroShift** is a tool for exploring streamflow trends in USGS gage data.  The pages within this web app
+        provides interactive plots of annual peak discharge, seasonality of flood peaks, and daily and monthly discharge
+        trends. Beyond data summary, this web app includes a statistical changepoint analysis that will detect when
+        significant changes in the distribution of flood peaks have occured.
         """
         )
 
