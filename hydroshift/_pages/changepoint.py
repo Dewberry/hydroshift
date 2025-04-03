@@ -196,8 +196,6 @@ class ChangePointAnalysis:
 
 def define_variables():
     """Set up page state and get default variables."""
-    if "gage_id" not in st.session_state:
-        st.session_state["gage_id"] = "12105900"
     if "changepoint" not in st.session_state:
         st.session_state.changepoint = ChangePointAnalysis(st.session_state["gage_id"])
 
@@ -300,43 +298,45 @@ def ffa_analysis(data: pd.DataFrame, regimes: list):
 
 def make_body():
     """Assemble main app body."""
-    cpa = st.session_state.changepoint
-    st.title(cpa.title)
-    warnings()
-    if len(cpa.data) == 0:
-        return
+    left_col, right_col = st.columns([2, 1])  # Formatting
+    with left_col:
+        cpa = st.session_state.changepoint
+        st.title(cpa.title)
+        warnings()
+        if len(cpa.data) == 0:
+            return
 
-    st.header("Summary")
-    st.markdown(cpa.summary_text)
-    st.plotly_chart(cpa.summary_plot, use_container_width=True)
-    st.header("Changepoint detection method")
-    st.markdown(
-        test_description.format(st.session_state.arlo_slider, st.session_state.burn_in, st.session_state.burn_in)
-    )
-
-    if len(cpa.cp_dict) > 0:
-        st.header("Changepoint detection results")
-        st.markdown(cpa.results_text)
-        st.table(cpa.cp_df)
-        st.text(
-            "Table 1. Results of the changepoint analysis, listing dates when a significant change was identified for each test statistic."
+        st.header("Summary")
+        st.markdown(cpa.summary_text)
+        st.plotly_chart(cpa.summary_plot, use_container_width=True)
+        st.header("Changepoint detection method")
+        st.markdown(
+            test_description.format(st.session_state.arlo_slider, st.session_state.burn_in, st.session_state.burn_in)
         )
 
-    st.header("Modified flood frequency analysis")
-    if len(st.session_state.ffa_regimes["added_rows"]) > 0:
-        ffa_plot, ffa_df = ffa_analysis(cpa.data, st.session_state.ffa_regimes["added_rows"])
-        if ffa_plot is not None and ffa_df is not None:
-            st.plotly_chart(ffa_plot, use_container_width=True)
-            st.table(ffa_df)
-    else:
-        st.info(
-            "To run pre- and post-changepoint flood frequency analyses, you can input timeseries ranges (regimes) in the flood frequency table on the sidebar.  You may add as many regimes as you think are appropriate, and the periods may overlap."
-        )
+        if len(cpa.cp_dict) > 0:
+            st.header("Changepoint detection results")
+            st.markdown(cpa.results_text)
+            st.table(cpa.cp_df)
+            st.text(
+                "Table 1. Results of the changepoint analysis, listing dates when a significant change was identified for each test statistic."
+            )
 
-    st.header("References")
-    st.markdown(references)
+        st.header("Modified flood frequency analysis")
+        if len(st.session_state.ffa_regimes["added_rows"]) > 0:
+            ffa_plot, ffa_df = ffa_analysis(cpa.data, st.session_state.ffa_regimes["added_rows"])
+            if ffa_plot is not None and ffa_df is not None:
+                st.plotly_chart(ffa_plot, use_container_width=True)
+                st.table(ffa_df)
+        else:
+            st.info(
+                "To run pre- and post-changepoint flood frequency analyses, you can input timeseries ranges (regimes) in the flood frequency table on the sidebar.  You may add as many regimes as you think are appropriate, and the periods may overlap."
+            )
 
-    st.download_button("Download analysis", cpa.word_data, f"changepoint_analysis_{st.session_state.gage_id}.docx")
+        st.header("References")
+        st.markdown(references)
+
+        st.download_button("Download analysis", cpa.word_data, f"changepoint_analysis_{st.session_state.gage_id}.docx")
 
 
 def warnings():
@@ -350,7 +350,7 @@ def warnings():
         st.error("No peak flow data available.")
 
 
-def main():
+def changepoint():
     """Outline the page."""
     st.set_page_config(page_title="USGS Gage Changepoint Analysis", layout="wide")
     define_variables()
@@ -359,7 +359,3 @@ def main():
     cpa.data, cpa.missing_years = get_data(st.session_state.gage_id)
     run_analysis()
     make_body()
-
-
-if __name__ == "__main__":
-    main()

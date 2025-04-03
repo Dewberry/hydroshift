@@ -3,17 +3,19 @@ import logging
 import numpy as np
 import pandas as pd
 import scipy.stats as stats
+import streamlit as st
 from dataretrieval import NoSitesError, nwis
 from scipy.stats import genpareto
 
 
+@st.cache_data
 def get_ams(gage_id, return_lp3_stats=False):
     """Fetches Annual Maximum Series (AMS) peak flow data for a given gage."""
     try:
         if gage_id == "testing":
             df = fake_ams()
         else:
-            df = nwis.get_record(service="peaks", sites=[gage_id], ssl_check=False)
+            df = nwis.get_record(service="peaks", sites=[gage_id], ssl_check=True)
     except NoSitesError:
         logging.warning(f"Peaks could not be found for gage id: {gage_id}")
         return None
@@ -28,10 +30,11 @@ def get_ams(gage_id, return_lp3_stats=False):
         return df, missing_years
 
 
+@st.cache_data
 def get_flow_stats(gage_id):
     """Fetches flow statistics for a given gage."""
     try:
-        df = nwis.get_stats(sites=gage_id, ssl_check=False)[0]
+        df = nwis.get_stats(sites=gage_id, ssl_check=True)[0]
     except IndexError:
         logging.warning(f"Flow stats could not be found for gage_id: {gage_id}")
         return None
@@ -39,10 +42,11 @@ def get_flow_stats(gage_id):
     return df
 
 
+@st.cache_data
 def load_site_data(gage_number: str) -> dict:
     """Query NWIS for site information"""
     try:
-        resp = nwis.get_record(sites=gage_number, service="site", ssl_check=False)
+        resp = nwis.get_record(sites=gage_number, service="site", ssl_check=True)
 
     except ValueError:
         raise ValueError(f"Gage {gage_number} not found")
@@ -58,6 +62,7 @@ def load_site_data(gage_number: str) -> dict:
     }
 
 
+@st.cache_data
 def log_pearson_iii(peak_flows: pd.Series, standard_return_periods: list = [2, 5, 10, 25, 50, 100, 500]):
     log_flows = np.log10(peak_flows.values)
     mean_log = np.mean(log_flows)
@@ -70,10 +75,11 @@ def log_pearson_iii(peak_flows: pd.Series, standard_return_periods: list = [2, 5
     }
 
 
+@st.cache_data
 def get_daily_values(gage_id, start_date, end_date):
     """Fetches mean daily flow values for a given gage."""
     try:
-        dv = nwis.get_dv(gage_id, start_date, end_date, ssl_check=False)[0]
+        dv = nwis.get_dv(gage_id, start_date, end_date, ssl_check=True)[0]
     except Exception:
         logging.warning(f"Daily Values could not be found for gage_id: {gage_id}")
         return None
@@ -83,10 +89,11 @@ def get_daily_values(gage_id, start_date, end_date):
     return dv, missing_dates
 
 
+@st.cache_data
 def get_monthly_values(gage_id):
     """Fetches mean monthly flow values for a given gage and assigns a datetime column based on the year and month."""
     try:
-        mv = nwis.get_stats(gage_id, statReportType="monthly", ssl_check=False)[0]
+        mv = nwis.get_stats(gage_id, statReportType="monthly", ssl_check=True)[0]
     except Exception:
         logging.warning(f"Monthly Values could not be found for gage_id: {gage_id}")
         return None
@@ -102,14 +109,14 @@ def get_monthly_values(gage_id):
 
 
 def check_missing_dates(df, freq):
-    """
-    Checks for missing dates in a DataFrame.
+    """Checks for missing dates in a DataFrame.
 
-    Parameters:
+    Parameters
+    ----------
     df (pd.DataFrame): The DataFrame containing time-series data.
     freq (str): Either 'daily', 'monthly', or 'water_year' to specify the type of data.
-    """
 
+    """
     if freq == "daily":
         if not isinstance(df.index, pd.DatetimeIndex):
             df = df.set_index("datetime")

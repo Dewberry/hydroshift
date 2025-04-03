@@ -1,5 +1,8 @@
 """Shared variables."""
 
+# UI
+DEFAULT_GAGE = "01151500"
+
 ### R Server ###
 R_SERVER_PORT = 9999
 R_SERVER_URL = f"http://127.0.0.1:{R_SERVER_PORT}"

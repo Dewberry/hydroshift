@@ -5,7 +5,6 @@ from data_retrieval import (
     get_daily_values,
     get_flow_stats,
     get_monthly_values,
-    load_site_data,
 )
 from plots import (
     plot_ams,
@@ -18,12 +17,13 @@ from plots import (
 from streamlit_folium import st_folium
 
 
-def app():
+def summary():
+    """Display summary plots for various timeseries associated with this gage."""
+    st.set_page_config(page_title="Gage Summary", layout="wide")
     # Sidebar for input
     with st.sidebar:
         st.title("Settings")
         st.session_state["gage_id"] = st.text_input("Enter USGS Gage Number:", st.session_state["gage_id"])
-
 
         # Toggle plots
         st.markdown("### Toggle Plots")
@@ -33,29 +33,28 @@ def app():
         show_ams_seasonal = st.checkbox("AMS Seasonal Ranking", value=True)
         show_daily_mean = st.checkbox("Daily Mean Streamflow", value=True)
         show_monthly_mean = st.checkbox("Monthly Mean Streamflow", value=True)
-        #show_changepoint = st.checkbox("Changepoint Analysis", value=False)
-
 
     if st.session_state["gage_id"]:
-        try:
-            if st.session_state["gage_id"] == "testing":
-                site_data = {
-                    "Site Number": "-99999",
-                    "Station Name": "Wet River",
-                    "Latitude": 45,
-                    "Longitude": -103,
-                    "Drainage Area": 0,
-                    "HUC Code": 0,
-                    "Elevation Datum": "NAVD88",
-                }
-            else:
-                site_data = st.session_state["site_data"]
-            lat, lon = site_data["Latitude"], site_data["Longitude"]
-        except ValueError as e:
-            lat, lon = None, None
-            st.error(f"{e}")
+        with st.spinner("Loading gage data..."):  # This is mainly here to clear previous pages while data loads.
+            try:
+                if st.session_state["gage_id"] == "testing":
+                    site_data = {
+                        "Site Number": "-99999",
+                        "Station Name": "Wet River",
+                        "Latitude": 45,
+                        "Longitude": -103,
+                        "Drainage Area": 0,
+                        "HUC Code": 0,
+                        "Elevation Datum": "NAVD88",
+                    }
+                else:
+                    site_data = st.session_state["site_data"]
+                lat, lon = site_data["Latitude"], site_data["Longitude"]
+            except ValueError as e:
+                lat, lon = None, None
+                st.error(f"{e}")
 
-        col1, col2, col3 = st.columns([1, 6, 2])
+        col2, col3 = st.columns([6, 2], gap="large")
 
         if lat and lon:
             with col3:
@@ -125,7 +124,7 @@ def app():
                 plot_col, input_col = st.columns([8, 2])
 
                 with input_col:
-                    st.write("") #blank line for more space
+                    st.write("")  # blank line for more space
                     st.write("Daily Mean Input Dates")
                     start_date = st.text_input("Start Date (YYYY-MM-DD)", "2024-01-01")
                     end_date = st.text_input("End Date (YYYY-MM-DD)", "2024-12-31")
@@ -150,23 +149,3 @@ def app():
                     show_data = st.checkbox("Show Monthly Mean Data Table")
                     if show_data:
                         st.dataframe(data)
-
-            # if show_changepoint:
-            #     main(st.session_state["gage_id"])
-
-
-                # data, missing_years = get_ams(st.session_state["gage_id"])
-                # if data is not None and "peak_va" in data.columns:
-                #     if missing_years:
-                #         st.warning(f"Missing {len(missing_years)} dates between {data.index.min()} and {data.index.max()}")
-                #     cpm = analyze_ts(data)
-                #     st.plotly_chart(plot_ams(data, st.session_state["gage_id"], cpm["cps"]), use_container_width=True)
-                #     st.plotly_chart(plot_cpm_heatmap(st.session_state["gage_id"], cpm["pval_df"]), use_container_width=True)
-                # else:
-                #     st.error("No peak flow data available.")
-                # if data is not None:
-                #     st.dataframe(data)
-
-
-if __name__=="__main__":
-    app()

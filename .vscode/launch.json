@@ -20,7 +20,7 @@
       "type": "debugpy",
       "request": "launch",
       "module": "streamlit",
-      "args": ["run", "${workspaceFolder}/hydroshift/app.py", "--server.port", "2000"]
+      "args": ["run", "${workspaceFolder}/hydroshift/streamlit_app.py", "--server.port", "2000"]
     }
   ]
 }
