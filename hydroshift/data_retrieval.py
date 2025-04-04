@@ -9,7 +9,7 @@ from scipy.stats import genpareto
 
 
 @st.cache_data
-def get_ams(gage_id, return_lp3_stats=False):
+def get_ams(gage_id):
     """Fetches Annual Maximum Series (AMS) peak flow data for a given gage."""
     try:
         if gage_id == "testing":
@@ -24,10 +24,7 @@ def get_ams(gage_id, return_lp3_stats=False):
 
     missing_years = check_missing_dates(df, "water_year")
 
-    if return_lp3_stats:
-        return log_pearson_iii(df["peak_va"]), missing_years
-    else:
-        return df, missing_years
+    return {"peaks": df, "lp3": log_pearson_iii(df["peak_va"]), "missing_years": missing_years}
 
 
 @st.cache_data

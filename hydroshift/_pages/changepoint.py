@@ -374,11 +374,10 @@ def ffa_analysis(data: pd.DataFrame, regimes: list):
             peaks = sub["peak_va"]
             lp3 = log_pearson_iii(peaks)
             label = f'{r["Regime Start"]} - {r["Regime End"]}'
-            ffa_dict[label] = lp3
+            ffa_dict[label] = {"peaks": sub, "lp3": lp3}
     if len(ffa_dict) > 0:
         ffa_plot = plot_lp3(ffa_dict, st.session_state.gage_id, multi_series=True)
-
-        ffa_df = pd.DataFrame.from_dict(ffa_dict, orient="index")
+        ffa_df = pd.DataFrame.from_dict({k: ffa_dict[k]["lp3"] for k in ffa_dict}, orient="index")
         renames = {c: f"Q{c}" for c in ffa_df.columns}
         ffa_df = ffa_df.rename(columns=renames)
         return ffa_plot, ffa_df
@@ -453,6 +452,7 @@ def changepoint():
     define_variables()
     make_sidebar()
     cpa = st.session_state.changepoint
-    cpa.data, cpa.missing_years = get_data(st.session_state.gage_id)
+    data = get_data(st.session_state.gage_id)
+    cpa.data, cpa.missing_years = data["peaks"], data["missing_years"]
     run_analysis()
     make_body()

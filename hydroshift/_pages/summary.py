@@ -84,7 +84,8 @@ def summary():
 
         with col2:  # Center column for plots
             if show_ams:
-                data, missing_years = get_ams(st.session_state["gage_id"])
+                ams = get_ams(st.session_state["gage_id"])
+                data, missing_years = ams["peaks"], ams["missing_years"]
                 if data is not None and "peak_va" in data.columns:
                     if missing_years:
                         st.warning(f"Missing {len(missing_years)} AMS records")
@@ -102,16 +103,17 @@ def summary():
                         st.dataframe(data)
 
             if show_lp3:
-                data, missing_years = get_ams(st.session_state["gage_id"], True)
-                if data is not None:
-                    if missing_years:
-                        st.warning(f"Missing {len(missing_years)} LP3 records")
-                    st.plotly_chart(plot_lp3(data, st.session_state["gage_id"]), use_container_width=True)
+                ams = get_ams(st.session_state["gage_id"])
+                if ams["peaks"] is not None:
+                    if ams["missing_years"]:
+                        st.warning(f"Missing {len(ams["missing_years"])} LP3 records")
+                    st.plotly_chart(plot_lp3(ams, st.session_state["gage_id"]), use_container_width=True)
                     show_data = st.checkbox("Show LP3 Data Table")
                     if show_data:
-                        st.dataframe(data)
+                        st.dataframe(ams["lp3"])
             if show_ams_seasonal:
-                data, missing_years = get_ams(st.session_state["gage_id"])
+                ams = get_ams(st.session_state["gage_id"])
+                data, missing_years = ams["peaks"], ams["missing_years"]
                 if data is not None and "peak_va" in data.columns:
                     if missing_years:
                         st.warning(f"Missing {len(missing_years)} AMS seasonal records")

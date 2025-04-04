@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
@@ -146,19 +147,34 @@ def plot_flow_stats(stats_df, gage_id):
     return fig
 
 
-def plot_lp3(lp3_data: dict | list, gage_id: str, multi_series: bool = False):
+def plot_lp3(data: dict | list, gage_id: str, multi_series: bool = False):
     """Creates a Plotly chart for Log-Pearson Type III return period vs. peak flow."""
     # Convert dict to lists for plotting
     if not multi_series:
-        ris = lp3_data
-        lp3_data = {"Log-Pearson III Fit": ris}
+        data = {"": data}
 
     fig = go.Figure()
 
-    for i in lp3_data:
-        ris = lp3_data[i]
-        return_periods = list(map(int, ris.keys()))
-        peak_flows = list(ris.values())
+    for i in data:
+        name = i + " - Peaks"
+        peaks = data[i]["peaks"]["peak_va"].values
+        peaks.sort()
+        aep = np.arange(1, len(peaks) + 1)[::-1] / (len(peaks) + 1)
+        ri = 1 / aep
+        fig.add_trace(
+            go.Scatter(
+                x=ri,
+                y=peaks,
+                mode="markers",
+                marker=dict(size=8, symbol="circle-open"),
+                name=name,
+            )
+        )
+
+        name = i + " - Log-Pearson III Fit"
+        lp3 = data[i]["lp3"]
+        return_periods = list(map(int, lp3.keys()))
+        peak_flows = list(lp3.values())
         fig.add_trace(
             go.Scatter(
                 x=return_periods,
@@ -166,9 +182,10 @@ def plot_lp3(lp3_data: dict | list, gage_id: str, multi_series: bool = False):
                 mode="markers+lines",
                 marker=dict(size=8),
                 line=dict(dash="solid"),
-                name=i,
+                name=name,
             )
         )
+
     fig.update_layout(
         title=f"{gage_id} | Log-Pearson Type III Estimates (No Regional Skew)",
         xaxis=dict(
