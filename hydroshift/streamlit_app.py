@@ -10,7 +10,7 @@ def homepage():
     """Landing page for app."""
     st.set_page_config(page_title="HydroShift", layout="wide")
 
-    left_col, right_col = st.columns([2, 1])
+    left_col, right_col, _ = st.columns([2, 1.5, 0.2], gap="large")
 
     with left_col:
         st.title("HydroShift")
@@ -43,6 +43,9 @@ def homepage():
             except ValueError:
                 st.error(f"Data not found for gage: {st.session_state['gage_id']}")
             st.rerun()
+    with right_col:
+        st.title("")
+        st.image("hydroshift/images/logo_base.png")
 
 
 def navigator():
