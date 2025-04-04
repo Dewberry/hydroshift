@@ -415,7 +415,7 @@ def ffa_analysis(data: pd.DataFrame, regimes: list):
     ffa_dict = {}
     for r in regimes:
         if "Regime Start" in r and "Regime End" in r:
-            sub = data.loc[r["Regime Start"] : r["Regime End"]]
+            sub = data.loc[r["Regime Start"] : r["Regime End"]].copy()
             peaks = sub["peak_va"]
             lp3 = log_pearson_iii(peaks)
             label = f'{r["Regime Start"]} - {r["Regime End"]}'

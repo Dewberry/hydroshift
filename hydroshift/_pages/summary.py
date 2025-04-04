@@ -75,9 +75,8 @@ def summary():
                 **Station Name:** {site_data["Station Name"]} <br>
                 **Latitude:** {site_data["Latitude"]} <br>
                 **Longitude:** {site_data["Longitude"]} <br>
-                **Drainage Area:** {site_data["Drainage Area"]} <br>
+                **Drainage Area (sq.mi.):** {site_data["Drainage Area"]} <br>
                 **HUC Code:** {site_data["HUC Code"]} <br>
-                **Elevation Datum:** {site_data["Elevation Datum"]}
                 """,
                     unsafe_allow_html=True,
                 )
