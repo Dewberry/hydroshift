@@ -13,7 +13,7 @@ These test statistics were utilized in two distinct ways in this analysis.  A st
 A streaming analysis was performed by treating the data as a stream of values and repeating the static analysis after each new value was added. If the test statistic exceeds a specified threshold at any point within the subseries, a changepoint is marked, and a new data series is initialized for all further test statistics. The resulting change points are shown as dashed red lines in the top panel of Figure 1.
 
  - The threshold for identifying changepoints in the streaming analysis is defined using an Average Run Length (ARL0) parameter. ARL0 reflects the frequency with which a false positive would be raised on a stationary timeseries (e.g., for an ARL0 of 1,000 a false changepoint would be identified on a stationary timeseries on average every 1,000 samples.).  For this analysis, an ARL0 of {} was used.
- - A burn-in period of {} years was selected to ignore singificant change points in the first and last {} years of the record due to the influence of small sample sizes.
+ - A burn-in period of {} years was selected to ignore singificant change points in the first {} years of the record due to the influence of small sample sizes.
 
 """
 references = """

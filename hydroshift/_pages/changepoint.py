@@ -1,5 +1,6 @@
 """A tool to identify changepoints in hydrologic timeseries."""
 
+import traceback
 from collections import defaultdict
 from dataclasses import dataclass, field
 from io import BytesIO
@@ -100,7 +101,18 @@ class ChangePointAnalysis:
         if number > 9:
             return number
         else:
-            d = {1: "one", 2: "two", 3: "three", 4: "four", 5: "five", 6: "six", 7: "seven", 8: "eight", 9: "nine"}
+            d = {
+                0: "no",
+                1: "one",
+                2: "two",
+                3: "three",
+                4: "four",
+                5: "five",
+                6: "six",
+                7: "seven",
+                8: "eight",
+                9: "nine",
+            }
             return d[number]
 
     @property
@@ -155,7 +167,7 @@ class ChangePointAnalysis:
         There is **{}** evidence that the annual maximum series data at USGS gage {} are nonstationary in time. Four change
         point detection tests were completed to assess changes in the mean, variance, and overall distribution of flood
         peaks across the period of record. Significant change points were identified using a Type I error rate of 1 in
-        {} and ignoring significant changes in the first and last {} years of data. {} statistically significant change
+        {} and ignoring significant changes in the first {} years of data. {} statistically significant change
         {} identified, indicating that {}
         """
         ).format(
@@ -179,18 +191,25 @@ class ChangePointAnalysis:
             evidence = "moderate"
         elif min_p < 1:
             evidence = "minor"
-        else:
-            evidence = "no"
         if p_count > 1:
             plural = "s"
         else:
             plural = ""
+        if min_p < 1:
+            sentence = "A minimum p-value of {} was obtained at {} contiguous time period{}.".format(
+                min_p, self.num_2_word(p_count), plural
+            )
+        else:
+            sentence = "There were no time-periods where a p-value less than 0.05 was observed in all tests."
+            if self.pval_df.isna().all().all():
+                evidence = "no"
+            else:
+                evidence = "minimal"
         p1 = """
-            The static changepoint test showed {} evidence of a changepoint in the timeseries.  A minimum p-value of {}
-            was obtained at {} contiguous time period{}.  The p-value reflects the probability that the distribution of
+            The static changepoint test showed {} evidence of a changepoint in the timeseries.  {}  The p-value reflects the probability that the distribution of
             flood peaks before that date has the **same** distribution as the flood peaks after the date.
         """.format(
-            evidence, min_p, self.num_2_word(p_count), plural
+            evidence, sentence
         )
 
         # Streaming analysis
@@ -282,11 +301,45 @@ class ChangePointAnalysis:
             p.add_run(r).bold = bold
             bold = not bold
 
+    def get_data(self, gage_id: int):
+        """Cache results of get_ams."""
+        data = get_ams(gage_id)
+
+        # Validate
+        if data is None:
+            st.session_state.valid_data = False
+            st.session_state.data_comment = "Unable to retrieve data."
+        elif data["peaks"] is None:
+            st.session_state.valid_data = False
+            st.session_state.data_comment = "Unable to retrieve data."
+        elif len(data["peaks"]) < st.session_state.burn_in:
+            st.session_state.valid_data = False
+            st.session_state.data_comment = (
+                "Not enough peaks available for analysis. {} peaks found, but burn-in length was {}".format(
+                    len(data["peaks"]), st.session_state.burn_in
+                )
+            )
+        else:
+            self.data, self.missing_years = data["peaks"], data["missing_years"]
+            st.session_state.valid_data = True
+
 
 def define_variables():
     """Set up page state and get default variables."""
+    # Ensure gage valid
+    if st.session_state.gage_id is None:
+        st.session_state.valid_data = False
+        st.session_state.data_comment = "Invalid USGS gage provided."
+        return
+    if not st.session_state.gage_id.isnumeric():
+        st.session_state.valid_data = False
+        st.session_state.data_comment = "Invalid USGS gage provided."
+        return
+
+    # Instantiate analysis class and get data
     if "changepoint" not in st.session_state:
-        st.session_state.changepoint = ChangePointAnalysis(st.session_state["gage_id"])
+        st.session_state.changepoint = ChangePointAnalysis(st.session_state.gage_id)
+    st.session_state.changepoint.get_data(st.session_state.gage_id)
 
 
 def make_sidebar():
@@ -294,42 +347,35 @@ def make_sidebar():
     with st.sidebar:
         st.title("Settings")
         st.session_state["gage_id"] = st.text_input("Enter USGS Gage Number:", st.session_state["gage_id"])
-        if len(st.session_state.changepoint.data) > 0:
-            st.select_slider(
-                "False Positive Rate (1 in #)",
-                options=VALID_ARL0S,
-                value=1000,
-                key="arlo_slider",
-                label_visibility="visible",
-            )
+        st.select_slider(
+            "False Positive Rate (1 in #)",
+            options=VALID_ARL0S,
+            value=1000,
+            key="arlo_slider",
+            label_visibility="visible",
+        )
 
-            st.number_input(
-                "Burn-in Period",
-                0,
-                100,
-                20,
-                key="burn_in",
-                label_visibility="visible",
-            )
-            st.text("Flood Frequency Analysis")
-            init_data = pd.DataFrame(columns=["Regime Start", "Regime End"])
-            init_data["Regime Start"] = pd.to_datetime(init_data["Regime Start"])
-            init_data["Regime End"] = pd.to_datetime(init_data["Regime End"])
+        st.number_input(
+            "Burn-in Period",
+            0,
+            100,
+            20,
+            key="burn_in",
+            label_visibility="visible",
+        )
+        st.text("Flood Frequency Analysis")
+        init_data = pd.DataFrame(columns=["Regime Start", "Regime End"])
+        init_data["Regime Start"] = pd.to_datetime(init_data["Regime Start"])
+        init_data["Regime End"] = pd.to_datetime(init_data["Regime End"])
 
-            start_config = st.column_config.DateColumn("Regime Start", format="D/M/YYYY")
-            end_config = st.column_config.DateColumn("Regime End", format="D/M/YYYY")
-            st.data_editor(
-                init_data,
-                num_rows="dynamic",
-                key="ffa_regimes",
-                column_config={"Regime Start": start_config, "Regime End": end_config},
-            )
-
-
-@st.cache_data
-def get_data(gage_id: int):
-    """Cache results of get_ams."""
-    return get_ams(gage_id)
+        start_config = st.column_config.DateColumn("Regime Start", format="D/M/YYYY")
+        end_config = st.column_config.DateColumn("Regime End", format="D/M/YYYY")
+        st.data_editor(
+            init_data,
+            num_rows="dynamic",
+            key="ffa_regimes",
+            column_config={"Regime Start": start_config, "Regime End": end_config},
+        )
 
 
 def run_analysis():
@@ -337,7 +383,6 @@ def run_analysis():
     cpa = st.session_state.changepoint
     cpa.pval_df = get_pvalues(cpa.data)
     cpa.cp_dict = get_changepoints(cpa.data, st.session_state.arlo_slider, st.session_state.burn_in)
-    return None
 
 
 @st.cache_data
@@ -392,8 +437,6 @@ def make_body():
         cpa = st.session_state.changepoint
         st.title(cpa.title)
         warnings()
-        if len(cpa.data) == 0:
-            return
 
         st.header("Summary")
         st.markdown(cpa.summary_text)
@@ -442,17 +485,20 @@ def warnings():
             st.warning(
                 f"Missing {len(st.session_state.changepoint.missing_years)} dates between {st.session_state.changepoint.data.index.min()} and {st.session_state.changepoint.data.index.max()}"
             )
-    else:
-        st.error("No peak flow data available.")
 
 
 def changepoint():
     """Outline the page."""
     st.set_page_config(page_title="USGS Gage Changepoint Analysis", layout="wide")
-    define_variables()
     make_sidebar()
-    cpa = st.session_state.changepoint
-    data = get_data(st.session_state.gage_id)
-    cpa.data, cpa.missing_years = data["peaks"], data["missing_years"]
-    run_analysis()
-    make_body()
+    define_variables()
+    if st.session_state.valid_data:
+        try:
+            run_analysis()
+        except Exception as e:
+            st.error(f"Changepoint model failed with error: {e}")
+            st.error(traceback.format_exc())
+        else:
+            make_body()
+    else:
+        st.error(st.session_state.data_comment)

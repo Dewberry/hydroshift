@@ -18,12 +18,13 @@ def get_ams(gage_id):
             df = nwis.get_record(service="peaks", sites=[gage_id], ssl_check=True)
     except NoSitesError:
         logging.warning(f"Peaks could not be found for gage id: {gage_id}")
-        return None
+        return {"peaks": None, "lp3": None, "missing_years": None}
 
     df["season"] = ((df.index.month % 12 + 3) // 3).map({1: "Winter", 2: "Spring", 3: "Summer", 4: "Fall"})
 
     missing_years = check_missing_dates(df, "water_year")
 
+    df = df.dropna(subset="peak_va")
     return {"peaks": df, "lp3": log_pearson_iii(df["peak_va"]), "missing_years": missing_years}
 
 

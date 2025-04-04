@@ -376,6 +376,8 @@ def combo_cpm(ams_df: pd.DataFrame, pval_df: pd.DataFrame, cps: dict = {}):
         color_continuous_scale=custom_color_scale,
         labels=dict(x="Date", y="Statistical Test", color="P-Value"),
         title="Changepoint Analysis",
+        zmin=0.001,
+        zmax=0.05,
     ).data[0]
     fig.add_trace(fig_imshow, row=2, col=1)
 

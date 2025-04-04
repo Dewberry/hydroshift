@@ -33,4 +33,4 @@ RUN uv pip install -e .
 EXPOSE 8501
 
 # Start the server
-CMD ["uv", "run", "streamlit", "run", "hydroshift/Home.py", "--server.port=8501", "--server.address=0.0.0.0", "--server.headless=true"]
+CMD ["uv", "run", "streamlit", "run", "hydroshift/streamlit_app.py", "--server.port=8501", "--server.address=0.0.0.0", "--server.headless=true"]
