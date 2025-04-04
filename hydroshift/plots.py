@@ -379,7 +379,6 @@ def combo_cpm(ams_df: pd.DataFrame, pval_df: pd.DataFrame, cps: dict = {}):
             tickvals=[0.05, 0.001],
             ticktext=["0.05", "0.001"],
         ),
-        title="Figure 1. Statistical changepoint analysis.",
         legend_tracegroupgap=10,
         xaxis2=dict(title="Date"),
         yaxis=dict(title="Peak Flow"),

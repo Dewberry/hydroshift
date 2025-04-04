@@ -29,6 +29,8 @@ class ChangePointAnalysis:
     missing_years: int = 0
     pval_df: dict = None
     cp_dict: dict = field(default_factory=dict)
+    ffa_plot = None
+    ffa_df: dict = field(default_factory=pd.DataFrame)
 
     @property
     def ts(self) -> np.ndarray:
@@ -112,6 +114,13 @@ class ChangePointAnalysis:
         """Export summary plot to png in memory."""
         bio = BytesIO()
         self.summary_plot.write_image(file=bio, width=1100, height=600)
+        return bio
+
+    @property
+    def ffa_png(self):
+        """Export FFA plot to png in memory."""
+        bio = BytesIO()
+        self.ffa_plot.write_image(file=bio, width=1100, height=600)
         return bio
 
     @property
@@ -205,6 +214,15 @@ class ChangePointAnalysis:
         return "\n\n".join([p1, p2])
 
     @property
+    def ffa_text(self) -> str:
+        return """
+                Based on the changepoint analysis results, a modified flood frequency analysis was conducted
+                using truncated periods of record. The truncated periods correspond with times when the
+                hydrologic regime appears to be stationary across time. Results from this analysis are shown
+                in Figure 2 and Table 2.
+                """
+
+    @property
     def word_data(self) -> BytesIO:
         """Export text as MS word."""
         document = Document()
@@ -220,17 +238,16 @@ class ChangePointAnalysis:
         if len(self.cp_dict) > 0:
             document.add_heading("Changepoint detection results", level=2)
             self.add_markdown_to_doc(document, self.results_text)
-            t = document.add_table(rows=len(self.cp_dict) + 1, cols=2)
-            t.rows[0].cells[0].text = "Date"
-            t.rows[0].cells[1].text = "Tests identifying significant change"
-            for ind, k in enumerate(self.cp_dict, start=1):
-                t.rows[ind].cells[0].text = str(k)
-                t.rows[ind].cells[1].text = self.cp_dict[k]
-            t.style = "Colorful List"
+            if len(self.cp_dict) > 1:
+                self.add_table_from_df(self.cp_df, document, index_name="Date")
 
-        # if len(st.session_state.ffa_regimes["added_rows"]) > 0:
-        #     document.add_heading("Modified flood frequency analysis", level=2)
-        #     t = document.add_table(rows=len(self.cp_dict) + 1, cols=2)
+        if self.ffa_df is not None and self.ffa_plot is not None:
+            document.add_heading("Modified flood frequency analysis", level=2)
+            self.add_markdown_to_doc(document, self.ffa_text)
+            document.add_picture(self.ffa_png, width=Inches(6.5))
+            self.add_markdown_to_doc(document, "**Figure 2.** Modified flood frequency analysis.")
+            self.add_markdown_to_doc(document, "**Table 2.** Modified flood quantiles.")
+            self.add_table_from_df(self.ffa_df, document, index_name="Regime Period")
 
         document.add_heading("References", level=2)
         self.add_markdown_to_doc(document, references)
@@ -239,11 +256,28 @@ class ChangePointAnalysis:
         document.save(out)
         return out
 
+    def add_table_from_df(self, df: pd.DataFrame, document: Document, index_name: str = None):
+        if index_name is not None:
+            df = df.copy()
+            cols = df.columns
+            df[index_name] = df.index
+            df = df[[index_name, *cols]]
+
+        t = document.add_table(df.shape[0] + 1, df.shape[1])
+        for j in range(df.shape[-1]):
+            t.cell(0, j).text = df.columns[j]
+        for i in range(df.shape[0]):
+            for j in range(df.shape[-1]):
+                t.cell(i + 1, j).text = str(df.values[i, j])
+        t.style = "Light Grid"
+
     def add_markdown_to_doc(self, document: Document, text: str):
         """Convert some elements of markdown to word format."""
         text = text.replace("\n        ", "")
         p = document.add_paragraph("")
         bold = text.startswith("**")
+        if bold:
+            text = text[2:]
         for r in text.split("**"):
             p.add_run(r).bold = bold
             bold = not bold
@@ -282,12 +316,13 @@ def make_sidebar():
             init_data["Regime Start"] = pd.to_datetime(init_data["Regime Start"])
             init_data["Regime End"] = pd.to_datetime(init_data["Regime End"])
 
-            col_config = st.column_config.DateColumn("Regime Start", format="D/M/YYYY")
+            start_config = st.column_config.DateColumn("Regime Start", format="D/M/YYYY")
+            end_config = st.column_config.DateColumn("Regime End", format="D/M/YYYY")
             st.data_editor(
                 init_data,
                 num_rows="dynamic",
                 key="ffa_regimes",
-                column_config={"Regime Start": col_config, "Regime End": col_config},
+                column_config={"Regime Start": start_config, "Regime End": end_config},
             )
 
 
@@ -364,6 +399,7 @@ def make_body():
         st.header("Summary")
         st.markdown(cpa.summary_text)
         st.plotly_chart(cpa.summary_plot, use_container_width=True)
+        st.markdown("**Figure 1.** Statistical changepoint analysis.")
         st.header("Changepoint detection method")
         st.markdown(
             test_description.format(st.session_state.arlo_slider, st.session_state.burn_in, st.session_state.burn_in)
@@ -374,15 +410,20 @@ def make_body():
             st.markdown(cpa.results_text)
             if len(cpa.cp_dict) > 1:
                 st.table(cpa.cp_df)
-                st.text(
-                    "**Table 1. Results of the changepoint analysis, listing dates when a significant change was identified for each test statistic.**"
+                st.markdown(
+                    "**Table 1.** Results of the changepoint analysis, listing dates when a significant change was identified for each test statistic."
                 )
 
         st.header("Modified flood frequency analysis")
         if len(st.session_state.ffa_regimes["added_rows"]) > 0:
             ffa_plot, ffa_df = ffa_analysis(cpa.data, st.session_state.ffa_regimes["added_rows"])
             if ffa_plot is not None and ffa_df is not None:
+                st.markdown(cpa.ffa_text)
+                cpa.ffa_plot = ffa_plot
+                cpa.ffa_df = ffa_df
                 st.plotly_chart(ffa_plot, use_container_width=True)
+                st.markdown("**Figure 2.** Modified flood frequency analysis.")
+                st.markdown("**Table 2.** Modified flood quantiles.")
                 st.table(ffa_df)
         else:
             st.info(
