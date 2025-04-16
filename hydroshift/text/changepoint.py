@@ -15,6 +15,8 @@ A streaming analysis was performed by treating the data as a stream of values an
  - The threshold for identifying changepoints in the streaming analysis is defined using an Average Run Length (ARL0) parameter. ARL0 reflects the frequency with which a false positive would be raised on a stationary timeseries (e.g., for an ARL0 of 1,000 a false changepoint would be identified on a stationary timeseries on average every 1,000 samples.).  For this analysis, an ARL0 of {} was used.
  - A burn-in period of {} years was selected to ignore singificant change points in the first {} years of the record due to the influence of small sample sizes.
 
+If the flood peak series contained any gaps, the data around the gap was joined as if there was no gap between the data points. For large data gaps, this assumption could lead to inaccurate results.
+
 """
 references = """
 Gordon J. Ross (2015)., "Parametric and Nonparametric Sequential Change Detection in R: The cpm Package.", Journal of Statistical Software, 66(3), 1-20., https://www.jstatsoft.org/v66/i03/.
