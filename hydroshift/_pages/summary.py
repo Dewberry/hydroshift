@@ -5,6 +5,7 @@ from data_retrieval import (
     get_daily_values,
     get_flow_stats,
     get_monthly_values,
+    extract_regulation_notes
 )
 from plots import (
     plot_ams,
@@ -82,6 +83,11 @@ def summary():
                 )
 
         with col2:  # Center column for plots
+            regulation_results = extract_regulation_notes(st.session_state["gage_id"])
+            if regulation_results['minor']:
+                st.warning(regulation_results['minor'])
+            if regulation_results['major']:
+                st.error(regulation_results['major'])
             if show_ams:
                 ams = get_ams(st.session_state["gage_id"])
                 data, missing_years = ams["peaks"], ams["missing_years"]
