@@ -7,6 +7,9 @@ import streamlit as st
 from dataretrieval import NoSitesError, nwis
 from scipy.stats import genpareto
 
+from itertools import groupby
+from typing import List
+from consts import REGULATION_MAP
 
 @st.cache_data
 def get_ams(gage_id):
@@ -32,7 +35,7 @@ def get_ams(gage_id):
 def get_flow_stats(gage_id):
     """Fetches flow statistics for a given gage."""
     try:
-        df = nwis.get_stats(sites=gage_id, ssl_check=True)[0]
+        df = nwis.get_stats(sites=gage_id, parameterCd="00060", ssl_check=True)[0]
     except IndexError:
         logging.warning(f"Flow stats could not be found for gage_id: {gage_id}")
         return None
@@ -164,3 +167,50 @@ def fake_ams() -> pd.DataFrame:
     water_year = dates.year
     df = pd.DataFrame({"datetime": dates, "peak_va": rvs, "water_year": water_year}).set_index("datetime")
     return df
+
+
+
+def group_consecutive_years(years: List[int]) -> List[str]:
+    """Groups consecutive years together and returns a list of formatted year ranges."""
+    sorted_years = sorted(years)
+    grouped_years = []
+
+    for _, group in groupby(enumerate(sorted_years), lambda ix: ix[0] - ix[1]):
+        g = [x[1] for x in group]
+        grouped_years.append(f"{g[0]}" if len(g) == 1 else f"{g[0]}-{g[-1]}")
+
+    return grouped_years
+
+
+def extract_regulation_notes(gage_id, major_codes = ['3', '9']) -> List[str]:
+    """Extracts and formats regulation notes from a DataFrame of peak data."""
+    df = nwis.get_record(service="peaks", sites=[gage_id], ssl_check=False)
+    df["water_year"] = df.index.year.where(df.index.month < 10, df.index.year + 1)
+
+    regulation_years = {}
+
+    for index, row in df.iterrows():
+        if pd.notna(row.get("peak_cd")):
+            codes = str(row["peak_cd"]).split(",")
+            for code in codes:
+                code_str = code.strip()
+                try:
+                    code_key = str(int(float(code_str)))  # Normalize numeric codes
+                except ValueError:
+                    code_key = code_str
+
+                if code_key in REGULATION_MAP:
+                    regulation_years.setdefault(code_key, set()).add(row["water_year"])
+
+    results = {"major": [],
+               "minor": []}
+    for code, years in regulation_years.items():
+        grouped_year_ranges = group_consecutive_years(sorted(years))
+        formatted_ranges = ", ".join(grouped_year_ranges)
+        if code in major_codes:
+            results["major"].append(f"{REGULATION_MAP[code]} for water years {formatted_ranges}")
+        else:
+            results["minor"].append(f"{REGULATION_MAP[code]} for water years {formatted_ranges}")
+
+    return results
+

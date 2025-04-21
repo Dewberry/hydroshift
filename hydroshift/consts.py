@@ -31,3 +31,11 @@ VALID_ARL0S = [
     50000,
 ]
 METRICS = ["Cramer-von-Mises", "Kolmogorov-Smirnov", "Lepage", "Mann-Whitney", "Mood"]
+
+REGULATION_MAP = {
+    "3": "Discharge affected by Dam Failure",
+    "5": "Discharge affected to unknown degree by Regulation or Diversion",
+    "6": "Discharge affected by Regulation or Diversion",
+    "9": "Discharge due to Snowmelt, Hurricane, Ice-Jam or Debris Dam breakup",
+    "C": "All or part of the record affected by Urbanization, Mining, Agricultural changes, Channelization, or other",
+}
