@@ -1,5 +1,6 @@
 import folium
 import streamlit as st
+from datetime import date
 from data_retrieval import (
     get_ams,
     get_daily_values,
@@ -133,10 +134,10 @@ def summary():
                 with input_col:
                     st.write("")  # blank line for more space
                     st.write("Daily Mean Input Dates")
-                    start_date = st.text_input("Start Date (YYYY-MM-DD)", "2024-01-01")
-                    end_date = st.text_input("End Date (YYYY-MM-DD)", "2024-12-31")
+                    start_date = st.date_input("Start Date", value=date(2024,1,1))
+                    end_date = st.date_input("End Date", value = date(2024, 12,31))
 
-                data, missing_dates = get_daily_values(st.session_state["gage_id"], start_date, end_date)
+                data, missing_dates = get_daily_values(st.session_state["gage_id"], start_date.strftime("%Y-%m-%d"), end_date.strftime("%Y-%m-%d"))
                 with plot_col:
                     if data is not None:
                         if missing_dates:
