@@ -4,6 +4,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 from plotly.subplots import make_subplots
+from scipy.stats import norm
 
 
 def plot_ams(ams_df, gage_id, cps: dict = {}):
@@ -161,9 +162,10 @@ def plot_lp3(data: dict | list, gage_id: str, multi_series: bool = False):
         peaks.sort()
         aep = np.arange(1, len(peaks) + 1)[::-1] / (len(peaks) + 1)
         ri = 1 / aep
+        z = norm.ppf(1 - aep)
         fig.add_trace(
             go.Scatter(
-                x=ri,
+                x=z,
                 y=peaks,
                 mode="markers",
                 marker=dict(size=8, symbol="circle-open"),
@@ -173,11 +175,13 @@ def plot_lp3(data: dict | list, gage_id: str, multi_series: bool = False):
 
         name = i + " - Log-Pearson III Fit"
         lp3 = data[i]["lp3"]
-        return_periods = list(map(int, lp3.keys()))
+
+        return_periods = [int(i) if i.is_integer() else round(i, 1) for i in lp3.keys()]
+        z2 = [norm.ppf(1 - (1 / i)) for i in return_periods]
         peak_flows = list(lp3.values())
         fig.add_trace(
             go.Scatter(
-                x=return_periods,
+                x=z2,
                 y=peak_flows,
                 mode="markers+lines",
                 marker=dict(size=8),
@@ -190,11 +194,10 @@ def plot_lp3(data: dict | list, gage_id: str, multi_series: bool = False):
         title=f"{gage_id} | Log-Pearson Type III Estimates (No Regional Skew)",
         xaxis=dict(
             title="Return Period (years)",
-            type="log",
-            tickvals=return_periods,
-            ticktext=[str(rp) for rp in return_periods],
+            tickvals=z2,
+            ticktext=return_periods,
         ),
-        yaxis=dict(title="Peak Flow (cfs)"),
+        yaxis=dict(title="Peak Flow (cfs)", type="log"),
         showlegend=True,
         template="plotly_white",
     )
@@ -400,7 +403,7 @@ def combo_cpm(ams_df: pd.DataFrame, pval_df: pd.DataFrame, cps: dict = {}):
         ),
         legend_tracegroupgap=10,
         xaxis2=dict(title="Date"),
-        yaxis=dict(title="Peak Flow"),
+        yaxis=dict(title="Peak Flow (cfs)"),
         yaxis2=dict(title="Statistical Test"),
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0),
         height=600,
