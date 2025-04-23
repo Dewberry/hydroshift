@@ -2,10 +2,11 @@ import logging
 
 import numpy as np
 import pandas as pd
-import scipy.stats as stats
 import streamlit as st
 from dataretrieval import NoSitesError, nwis
 from scipy.stats import genpareto
+
+from hydroshift.stats.ffa import log_pearson_iii
 
 
 @st.cache_data
@@ -20,7 +21,9 @@ def get_ams(gage_id):
         logging.warning(f"Peaks could not be found for gage id: {gage_id}")
         return {"peaks": None, "lp3": None, "missing_years": None}
 
-    df["season"] = ((df.index.month % 12 + 3) // 3).map({1: "Winter", 2: "Spring", 3: "Summer", 4: "Fall"})
+    df["season"] = ((df.index.month % 12 + 3) // 3).map(
+        {1: "Winter", 2: "Spring", 3: "Summer", 4: "Fall"}
+    )  # TODO: should add labels like Winter(JFM), Spring(AMJ), etc
 
     missing_years = check_missing_dates(df, "water_year")
 
@@ -50,26 +53,13 @@ def load_site_data(gage_number: str) -> dict:
         raise ValueError(f"Gage {gage_number} not found")
 
     return {
-        "Site Number": resp["site_no"].iloc[0],
-        "Station Name": resp["station_nm"].iloc[0],
-        "Latitude": float(resp["dec_lat_va"].iloc[0]),
-        "Longitude": float(resp["dec_long_va"].iloc[0]),
-        "Drainage Area": resp["drain_area_va"].iloc[0],
-        "HUC Code": resp["huc_cd"].iloc[0],
-        "Elevation Datum": resp["alt_datum_cd"].iloc[0],
-    }
-
-
-@st.cache_data
-def log_pearson_iii(peak_flows: pd.Series, standard_return_periods: list = [2, 5, 10, 25, 50, 100, 500]):
-    log_flows = np.log10(peak_flows.values)
-    mean_log = np.mean(log_flows)
-    std_log = np.std(log_flows, ddof=1)
-    skew_log = stats.skew(log_flows)
-
-    return {
-        str(rp): int(10 ** (mean_log + stats.pearson3.ppf(1 - 1 / rp, skew_log) * std_log))
-        for rp in standard_return_periods
+        "site_no": resp["site_no"].iloc[0],
+        "station_nm": resp["station_nm"].iloc[0],
+        "dec_lat_va": float(resp["dec_lat_va"].iloc[0]),
+        "dec_long_va": float(resp["dec_long_va"].iloc[0]),
+        "drain_area_va": resp["drain_area_va"].iloc[0],
+        "huc_cd": resp["huc_cd"].iloc[0],
+        "alt_datum_cd": resp["alt_datum_cd"].iloc[0],
     }
 
 

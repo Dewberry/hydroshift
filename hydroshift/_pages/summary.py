@@ -16,6 +16,9 @@ from plots import (
 )
 from streamlit_folium import st_folium
 
+from hydroshift.utils.data_models import Gage
+from hydroshift.utils.jinja import write_template
+
 
 def summary():
     """Display summary plots for various timeseries associated with this gage."""
@@ -24,6 +27,7 @@ def summary():
     with st.sidebar:
         st.title("Settings")
         st.session_state["gage_id"] = st.text_input("Enter USGS Gage Number:", st.session_state["gage_id"])
+        gage = Gage(st.session_state["gage_id"])
 
         # Toggle plots
         st.markdown("### Toggle Plots")
@@ -34,22 +38,26 @@ def summary():
         show_daily_mean = st.checkbox("Daily Mean Streamflow", value=True)
         show_monthly_mean = st.checkbox("Monthly Mean Streamflow", value=True)
 
+        # Data sources
+        st.divider()
+        write_template("data_sources_side_bar.html")
+
     if st.session_state["gage_id"]:
         with st.spinner("Loading gage data..."):  # This is mainly here to clear previous pages while data loads.
             try:
                 if st.session_state["gage_id"] == "testing":
                     site_data = {
-                        "Site Number": "-99999",
-                        "Station Name": "Wet River",
-                        "Latitude": 45,
-                        "Longitude": -103,
-                        "Drainage Area": 0,
-                        "HUC Code": 0,
-                        "Elevation Datum": "NAVD88",
+                        "site_no": "-99999",
+                        "station_nm": "Wet River",
+                        "dec_lat_va": 45,
+                        "dec_long_va": -103,
+                        "drain_area_va": 0,
+                        "huc_cd": 0,
+                        "alt_datum_cd": "NAVD88",
                     }
                 else:
                     site_data = st.session_state["site_data"]
-                lat, lon = site_data["Latitude"], site_data["Longitude"]
+                lat, lon = site_data["dec_lat_va"], site_data["dec_long_va"]
             except ValueError as e:
                 lat, lon = None, None
                 st.error(f"{e}")
@@ -69,17 +77,7 @@ def summary():
 
                 # Display site metadata
                 st.subheader("Site Information")
-                st.markdown(
-                    f"""
-                **Site Number:** {site_data["Site Number"]} <br>
-                **Station Name:** {site_data["Station Name"]} <br>
-                **Latitude:** {site_data["Latitude"]} <br>
-                **Longitude:** {site_data["Longitude"]} <br>
-                **Drainage Area (sq.mi.):** {site_data["Drainage Area"]} <br>
-                **HUC Code:** {site_data["HUC Code"]} <br>
-                """,
-                    unsafe_allow_html=True,
-                )
+                write_template("site_summary.md", site_data)
 
         with col2:  # Center column for plots
             if show_ams:

@@ -16,10 +16,18 @@ from docx.shared import Inches
 from plotly import graph_objects
 from plots import combo_cpm, plot_lp3
 
-from hydroshift.consts import METRICS, VALID_ARL0S
+from hydroshift.consts import (
+    CP_F1_CAPTION,
+    CP_F2_CAPTION,
+    CP_T1_CAPTION,
+    CP_T2_CAPTION,
+    METRICS,
+    VALID_ARL0S,
+)
 from hydroshift.data_retrieval import log_pearson_iii
 from hydroshift.stats.tests import cp_pvalue_batch, cpm_process_stream
 from hydroshift.text.changepoint import references, test_description
+from hydroshift.utils.jinja import write_template
 
 
 @dataclass
@@ -377,6 +385,9 @@ def make_sidebar():
             column_config={"Regime Start": start_config, "Regime End": end_config},
         )
 
+    st.divider()
+    write_template("footer.html")
+
 
 def run_analysis():
     """Run the change point model analysis."""
@@ -441,10 +452,10 @@ def make_body():
         st.header("Summary")
         st.markdown(cpa.summary_text)
         st.plotly_chart(cpa.summary_plot, use_container_width=True)
-        st.markdown("**Figure 1.** Statistical changepoint analysis.")
+        st.markdown(CP_F1_CAPTION)
         st.header("Changepoint detection method")
-        st.markdown(
-            test_description.format(st.session_state.arlo_slider, st.session_state.burn_in, st.session_state.burn_in)
+        write_template(
+            "changepoint_description.md", {"arl0": st.session_state.arlo_slider, "burnin": st.session_state.burn_in}
         )
 
         if len(cpa.cp_dict) > 0:
@@ -452,9 +463,7 @@ def make_body():
             st.markdown(cpa.results_text)
             if len(cpa.cp_dict) > 1:
                 st.table(cpa.cp_df)
-                st.markdown(
-                    "**Table 1.** Results of the changepoint analysis, listing dates when a significant change was identified for each test statistic."
-                )
+                st.markdown(CP_T1_CAPTION)
 
         st.header("Modified flood frequency analysis")
         if len(st.session_state.ffa_regimes["added_rows"]) > 0:
@@ -464,8 +473,8 @@ def make_body():
                 cpa.ffa_plot = ffa_plot
                 cpa.ffa_df = ffa_df
                 st.plotly_chart(ffa_plot, use_container_width=True)
-                st.markdown("**Figure 2.** Modified flood frequency analysis.")
-                st.markdown("**Table 2.** Modified flood quantiles.")
+                st.markdown(CP_F2_CAPTION)
+                st.markdown(CP_T2_CAPTION)
                 st.table(ffa_df)
         else:
             st.info(
