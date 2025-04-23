@@ -86,9 +86,11 @@ def summary():
         with col2:  # Center column for plots
             regulation_results = extract_regulation_notes(st.session_state["gage_id"])
             if regulation_results['minor']:
-                st.warning(regulation_results['minor'])
+                for result in regulation_results['minor']:
+                    st.warning(result)
             if regulation_results['major']:
-                st.error(regulation_results['major'])
+                for result in regulation_results['major']:
+                    st.error(result)
             if show_ams:
                 ams = get_ams(st.session_state["gage_id"])
                 data, missing_years = ams["peaks"], ams["missing_years"]
