@@ -8,13 +8,9 @@ from io import BytesIO
 import numpy as np
 import pandas as pd
 import streamlit as st
-from data_retrieval import (
-    get_ams,
-)
 from docx import Document
 from docx.shared import Inches
 from plotly import graph_objects
-from plots import combo_cpm, plot_lp3
 
 from hydroshift.consts import (
     CP_F1_CAPTION,
@@ -24,10 +20,13 @@ from hydroshift.consts import (
     METRICS,
     VALID_ARL0S,
 )
-from hydroshift.data_retrieval import log_pearson_iii
-from hydroshift.stats.tests import cp_pvalue_batch, cpm_process_stream
 from hydroshift.text.changepoint import references, test_description
+from hydroshift.utils.data_retrieval import (
+    get_ams,
+)
 from hydroshift.utils.jinja import write_template
+from hydroshift.utils.plots import combo_cpm, plot_lp3
+from hydroshift.utils.tests import cp_pvalue_batch, cpm_process_stream
 
 
 @dataclass

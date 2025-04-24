@@ -7,6 +7,8 @@ DEFAULT_GAGE = "01151500"
 R_SERVER_PORT = 9999
 R_SERVER_URL = f"http://127.0.0.1:{R_SERVER_PORT}"
 
+### FFA ###
+
 ### Changepoint Analysis ###
 VALID_ARL0S = [
     370,
