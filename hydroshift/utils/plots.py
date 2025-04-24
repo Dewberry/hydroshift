@@ -2,10 +2,11 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
+from plotly.graph_objects import Figure
 from plotly.subplots import make_subplots
 from scipy.stats import norm
 
-from hydroshift.utils.data_models import LP3Analysis
+from hydroshift.utils.ffa import LP3Analysis
 
 
 def plot_ams(ams_df, gage_id, cps: dict = {}):
@@ -320,7 +321,7 @@ def plot_cpm_heatmap(pval_df: pd.DataFrame):
 
 
 @st.cache_data
-def combo_cpm(ams_df: pd.DataFrame, pval_df: pd.DataFrame, cps: dict = {}):
+def combo_cpm(ams_df: pd.DataFrame, pval_df: pd.DataFrame, cps: dict = {}) -> Figure:
     """Plot a change point model with peak flows and statistical analysis."""
     # Create subplots
     fig = make_subplots(

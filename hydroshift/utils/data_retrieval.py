@@ -7,6 +7,78 @@ from dataretrieval import NoSitesError, nwis
 from scipy.stats import genpareto
 
 
+class Gage:
+    """A USGS Gage."""
+
+    def __init__(self, gage_id: str):
+        """Construct class."""
+        self.gage_id = gage_id
+        self.site_data = load_site_data(gage_id)
+
+    @property
+    @st.cache_data(hash_funcs={"hydroshift.utils.data_retrieval.Gage": lambda x: hash(x.gage_id)})
+    def latitude(self) -> float:
+        """Latitude of gage."""
+        return self.site_data.get("dec_lat_va")
+
+    @property
+    @st.cache_data(hash_funcs={"hydroshift.utils.data_retrieval.Gage": lambda x: hash(x.gage_id)})
+    def longitude(self) -> float:
+        """Longitude of gage."""
+        return self.site_data.get("dec_long_va")
+
+    @property
+    @st.cache_data(hash_funcs={"hydroshift.utils.data_retrieval.Gage": lambda x: hash(x.gage_id)})
+    def ams(self) -> pd.DataFrame:
+        """Load AMS for this site."""
+        return get_ams(self.gage_id)
+
+    @property
+    def ams_vals(self) -> np.ndarray:
+        """Convenient ams column selection."""
+        return self.ams["peak_va"].values
+
+    @property
+    def missing_dates_ams(self) -> list:
+        """Get missing dates for AMS."""
+        return check_missing_dates(self.ams, "water_year")
+
+    @property
+    @st.cache_data(hash_funcs={"hydroshift.utils.data_retrieval.Gage": lambda x: hash(x.gage_id)})
+    def flow_stats(self) -> pd.DataFrame:
+        """Load flow statistics for this site."""
+        return get_flow_stats(self.gage_id)
+
+    @st.cache_data(hash_funcs={"hydroshift.utils.data_retrieval.Gage": lambda x: hash(x.gage_id)})
+    def get_daily_values(self, start_date: str, end_date: str) -> pd.DataFrame:
+        """Load daily mean discharge for this site."""
+        return get_daily_values(self.gage_id, start_date, end_date)
+
+    @property
+    def missing_dates_daily_values(self, start_date: str, end_date: str) -> list:
+        """Get missing dates for mean daily value series."""
+        return check_missing_dates(self.get_daily_values(start_date, end_date), "daily")
+
+    @st.cache_data(hash_funcs={"hydroshift.utils.data_retrieval.Gage": lambda x: hash(x.gage_id)})
+    def get_monthly_values(self, start_date: str, end_date: str) -> pd.DataFrame:
+        """Load monthly mean discharge for this site."""
+        return get_monthly_values(self.gage_id, start_date, end_date)
+
+    @property
+    def missing_dates_monthly_values(self, start_date: str, end_date: str) -> list:
+        """Get missing dates for mean monthly value series."""
+        return check_missing_dates(self.get_monthly_values(start_date, end_date), "monthly")
+
+    def raise_warnings(self):
+        """Create any high level data warnings."""
+        pass
+
+    @property
+    def has_regional_skew(self):
+        """Check if gage has regional skew available."""
+        return False
+
+
 @st.cache_data
 def get_ams(gage_id):
     """Fetches Annual Maximum Series (AMS) peak flow data for a given gage."""

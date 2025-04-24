@@ -5,12 +5,11 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from io import BytesIO
 
-import numpy as np
 import pandas as pd
 import streamlit as st
 from docx import Document
 from docx.shared import Inches
-from plotly import graph_objects
+from plotly.graph_objects import Figure
 
 from hydroshift.consts import (
     CP_F1_CAPTION,
@@ -20,30 +19,22 @@ from hydroshift.consts import (
     METRICS,
     VALID_ARL0S,
 )
-from hydroshift.text.changepoint import references, test_description
-from hydroshift.utils.data_retrieval import (
-    get_ams,
-)
-from hydroshift.utils.jinja import write_template
+from hydroshift.utils.changepoint import cp_pvalue_batch, cpm_process_stream
+from hydroshift.utils.common import num_2_word
+from hydroshift.utils.data_retrieval import Gage
+from hydroshift.utils.jinja import render_template, write_template
 from hydroshift.utils.plots import combo_cpm, plot_lp3
-from hydroshift.utils.tests import cp_pvalue_batch, cpm_process_stream
 
 
 @dataclass
 class ChangePointAnalysis:
     """OOP representation of the changepoint analysis."""
 
-    data: dict = field(default_factory=pd.DataFrame)
-    missing_years: int = 0
+    gage: Gage = field(default_factory=Gage)
     pval_df: dict = None
     cp_dict: dict = field(default_factory=dict)
     ffa_plot = None
     ffa_df: dict = field(default_factory=pd.DataFrame)
-
-    @property
-    def ts(self) -> np.ndarray:
-        """Timeseries from data."""
-        return self.data["peak_va"].values
 
     @property
     def nonstationary(self) -> bool:
@@ -92,7 +83,7 @@ class ChangePointAnalysis:
 
         return groups, test_counts
 
-    def get_max_pvalue(self):
+    def get_max_pvalue(self) -> tuple[float, int]:
         """Get the minimum p value where all tests agree and count how often that occurred."""
         all_tests = self.pval_df.fillna(1).max(axis=1).to_frame(name="pval")
         all_tests["run"] = ((all_tests != all_tests.shift(1)) * 1).cumsum()
@@ -103,32 +94,12 @@ class ChangePointAnalysis:
                 break
         return min_p, count
 
-    def num_2_word(self, number: int) -> str:
-        """Convert numbers less than 10 to words."""
-        if number > 9:
-            return number
-        else:
-            d = {
-                0: "no",
-                1: "one",
-                2: "two",
-                3: "three",
-                4: "four",
-                5: "five",
-                6: "six",
-                7: "seven",
-                8: "eight",
-                9: "nine",
-            }
-            return d[number]
-
     @property
-    def summary_plot(self) -> graph_objects:
+    def summary_plot(self) -> Figure:
         """Create plotly plot to summarize analysis."""
-        return combo_cpm(self.data, self.pval_df, self.cp_dict)
+        return combo_cpm(self.gage.ams, self.pval_df, self.cp_dict)
 
     @property
-    @st.cache_resource
     def summary_png(self) -> BytesIO:
         """Export summary plot to png in memory."""
         bio = BytesIO()
@@ -143,7 +114,6 @@ class ChangePointAnalysis:
         return bio
 
     @property
-    @st.cache_resource
     def cp_df(self):
         """Get a dataframe representing changepoints identified in the streaming analysis."""
         cpa_df = pd.DataFrame.from_dict(self.cp_dict, orient="index", columns=["Tests Identifying Change"])
@@ -158,95 +128,61 @@ class ChangePointAnalysis:
     @property
     def summary_text(self) -> str:
         """A text summary of the changepoint analysis."""
-        if self.nonstationary:
-            end_text = """
-            some form of nonstationarity (e.g., land use change, climate change, flow regulation, etc) may be influencing flow patterns at this site.
-            """
-        else:
-            end_text = """an assumption of nonstationary conditions is likely reasonable."""
-        cp_count = self.num_2_word(len(self.cp_dict))
-        if len(self.cp_dict) == 1:
-            plural_text = "point was"
-        else:
-            plural_text = "points were"
-        return (
-            """
-        There is **{}** evidence that the annual maximum series data at USGS gage {} are nonstationary in time. Four change
-        point detection tests were completed to assess changes in the mean, variance, and overall distribution of flood
-        peaks across the period of record. Significant change points were identified using a Type I error rate of 1 in
-        {} and ignoring significant changes in the first {} years of data. {} statistically significant change
-        {} identified, indicating that {}
-        """
-        ).format(
-            self.evidence_level,
-            st.session_state.gage_id,
-            st.session_state.arlo_slider,
-            st.session_state.burn_in,
-            cp_count,
-            plural_text,
-            end_text,
-        )
+        payload = {
+            "evidence_level": self.evidence_level,
+            "gage_id": self.gage.gage_id,
+            "arl0": st.session_state.arlo_slider,
+            "burn_in": st.session_state.burn_in,
+            "cp_count": num_2_word(len(self.cp_dict)),
+            "plural": len(self.cp_dict) != 1,
+            "nonstationary": self.nonstationary,
+        }
+        return render_template("changepoint_summary_1.md", payload)
+
+    @property
+    def test_description(self):
+        """Analysis methodology."""
+        payload = {"alr0": st.session_state.arlo_slider, "burn_in": st.session_state.burn_in}
+        return render_template("changepoint_description.md", payload)
 
     @property
     def results_text(self) -> str:
         """A detailed description of the results."""
-        # Static analysis
+        # Gather stats
         min_p, p_count = self.get_max_pvalue()
         if min_p == 0.001:
             evidence = "strong"
         elif min_p == 0.005:
             evidence = "moderate"
+        elif self.pval_df.isna().all().all():
+            evidence = "no"
         elif min_p < 1:
             evidence = "minor"
-        if p_count > 1:
-            plural = "s"
-        else:
-            plural = ""
-        if min_p < 1:
-            sentence = "A minimum p-value of {} was obtained at {} contiguous time period{}.".format(
-                min_p, self.num_2_word(p_count), plural
-            )
-        else:
-            sentence = "There were no time-periods where a p-value less than 0.05 was observed in all tests."
-            if self.pval_df.isna().all().all():
-                evidence = "no"
-            else:
-                evidence = "minimal"
-        p1 = """
-            The static changepoint test showed {} evidence of a changepoint in the timeseries.  {}  The p-value reflects the probability that the distribution of
-            flood peaks before that date has the **same** distribution as the flood peaks after the date.
-        """.format(
-            evidence, sentence
-        )
+        groups, _ = self.get_change_windows()
 
-        # Streaming analysis
-        if len(self.cp_dict) == 1:
-            p2 = """
-            The streaming analysis identified one statistically significant changepoint. This changepoint was identified
-            by {} distinct tests: {}."""
-        else:
-            groups, test_counts = self.get_change_windows()
-            if len(groups) > 0:
-                plural = "s"
-            else:
-                plural = ""
-            p2 = """
-            The streaming analysis identified {} statistically significant changepoints. These changepoints broadly fell
-            into {} window{} where tests identified changepoints not more than 10 years apart. For a full summary of which
-            tests identified changes at which dates, see table 2.
-            """.format(
-                self.num_2_word(len(self.cp_dict)), self.num_2_word(len(groups)), plural
-            )
-        return "\n\n".join([p1, p2])
+        # format
+        payload = {
+            "evidence": evidence,
+            "min_p": min_p,
+            "p_count": num_2_word(p_count),
+            "plural": p_count > 1,
+            "len_cp": len(self.cp_dict),
+            "len_cp_str": num_2_word(len(self.cp_dict)),
+            "test_count": num_2_word(len(self.cp_dict[next(iter(self.cp_dict))].split(","))),
+            "grp_count": num_2_word(len(groups)),
+            "plural_2": len(groups) > 0,
+        }
+        return render_template("changepoint_summary_2.md", payload)
 
     @property
     def ffa_text(self) -> str:
-        return """
-                Based on the changepoint analysis results, a modified flood frequency analysis was conducted
-                using truncated periods of record. The truncated periods correspond with times when the
-                hydrologic regime appears to be stationary across time. Results from this analysis are shown
-                in Figure 2 and Table 2.
-                """
+        """Methodology for the modified FFA."""
+        return render_template("changepoint_ffa.md")
+
+    @property
+    def references(self) -> str:
+        """Citations."""
+        return render_template("changepoint_references.md")
 
     @property
     def word_data(self) -> BytesIO:
@@ -257,10 +193,7 @@ class ChangePointAnalysis:
         self.add_markdown_to_doc(document, self.summary_text)
         document.add_picture(self.summary_png, width=Inches(6.5))
         document.add_heading("Changepoint detection method", level=2)
-        self.add_markdown_to_doc(
-            document,
-            test_description.format(st.session_state.arlo_slider, st.session_state.burn_in, st.session_state.burn_in),
-        )
+        self.add_markdown_to_doc(document, self.test_description)
         if len(self.cp_dict) > 0:
             document.add_heading("Changepoint detection results", level=2)
             self.add_markdown_to_doc(document, self.results_text)
@@ -276,7 +209,7 @@ class ChangePointAnalysis:
             self.add_table_from_df(self.ffa_df, document, index_name="Regime Period")
 
         document.add_heading("References", level=2)
-        self.add_markdown_to_doc(document, references)
+        self.add_markdown_to_doc(document, self.references)
 
         out = BytesIO()
         document.save(out)
@@ -308,18 +241,15 @@ class ChangePointAnalysis:
             p.add_run(r).bold = bold
             bold = not bold
 
-    def get_data(self, gage_id: int):
+    def validate_data(self):
         """Cache results of get_ams."""
-        data = get_ams(gage_id)
+        data = self.gage.ams
 
         # Validate
         if data is None:
             st.session_state.valid_data = False
             st.session_state.data_comment = "Unable to retrieve data."
-        elif data["peaks"] is None:
-            st.session_state.valid_data = False
-            st.session_state.data_comment = "Unable to retrieve data."
-        elif len(data["peaks"]) < st.session_state.burn_in:
+        elif len(data) < st.session_state.burn_in:
             st.session_state.valid_data = False
             st.session_state.data_comment = (
                 "Not enough peaks available for analysis. {} peaks found, but burn-in length was {}".format(
@@ -327,7 +257,6 @@ class ChangePointAnalysis:
                 )
             )
         else:
-            self.data, self.missing_years = data["peaks"], data["missing_years"]
             st.session_state.valid_data = True
 
 
@@ -345,8 +274,8 @@ def define_variables():
 
     # Instantiate analysis class and get data
     if "changepoint" not in st.session_state:
-        st.session_state.changepoint = ChangePointAnalysis(st.session_state.gage_id)
-    st.session_state.changepoint.get_data(st.session_state.gage_id)
+        st.session_state.changepoint = ChangePointAnalysis(st.session_state.gage)
+    st.session_state.changepoint.validate_data()
 
 
 def make_sidebar():
@@ -354,6 +283,7 @@ def make_sidebar():
     with st.sidebar:
         st.title("Settings")
         st.session_state["gage_id"] = st.text_input("Enter USGS Gage Number:", st.session_state["gage_id"])
+        st.session_state.gage = Gage(st.session_state["gage_id"])
         st.select_slider(
             "False Positive Rate (1 in #)",
             options=VALID_ARL0S,
@@ -391,8 +321,8 @@ def make_sidebar():
 def run_analysis():
     """Run the change point model analysis."""
     cpa = st.session_state.changepoint
-    cpa.pval_df = get_pvalues(cpa.data)
-    cpa.cp_dict = get_changepoints(cpa.data, st.session_state.arlo_slider, st.session_state.burn_in)
+    cpa.pval_df = get_pvalues(cpa.gage.ams)
+    cpa.cp_dict = get_changepoints(cpa.gage.ams, st.session_state.arlo_slider, st.session_state.burn_in)
 
 
 @st.cache_data
@@ -444,7 +374,7 @@ def make_body():
     """Assemble main app body."""
     left_col, right_col = st.columns([2, 1])  # Formatting
     with left_col:
-        cpa = st.session_state.changepoint
+        cpa: ChangePointAnalysis = st.session_state.changepoint
         st.title(cpa.title)
         warnings()
 
@@ -453,9 +383,7 @@ def make_body():
         st.plotly_chart(cpa.summary_plot, use_container_width=True)
         st.markdown(CP_F1_CAPTION)
         st.header("Changepoint detection method")
-        write_template(
-            "changepoint_description.md", {"arl0": st.session_state.arlo_slider, "burnin": st.session_state.burn_in}
-        )
+        st.markdown(cpa.test_description)
 
         if len(cpa.cp_dict) > 0:
             st.header("Changepoint detection results")
@@ -481,17 +409,21 @@ def make_body():
             )
 
         st.header("References")
-        st.markdown(references)
+        st.markdown(cpa.references)
 
         st.download_button("Download analysis", cpa.word_data, f"changepoint_analysis_{st.session_state.gage_id}.docx")
 
 
 def warnings():
     """Print warnings on data validity etc."""
-    if st.session_state.changepoint.data is not None and "peak_va" in st.session_state.changepoint.data.columns:
-        if st.session_state.changepoint.missing_years:
+    if st.session_state.changepoint.gage.ams is not None and "peak_va" in st.session_state.changepoint.gage.ams.columns:
+        if st.session_state.changepoint.gage.missing_dates_ams:
             st.warning(
-                f"Missing {len(st.session_state.changepoint.missing_years)} dates between {st.session_state.changepoint.data.index.min()} and {st.session_state.changepoint.data.index.max()}"
+                "Missing {} dates between {} and {}".format(
+                    len(st.session_state.changepoint.gage.missing_dates_ams),
+                    st.session_state.changepoint.gage.ams.index.min(),
+                    st.session_state.changepoint.gage.ams.index.max(),
+                )
             )
 
 

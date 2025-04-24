@@ -2,7 +2,8 @@ import folium
 import streamlit as st
 from streamlit_folium import st_folium
 
-from hydroshift.utils.data_models import Gage, LP3Analysis
+from hydroshift.utils.data_retrieval import Gage
+from hydroshift.utils.ffa import LP3Analysis
 from hydroshift.utils.jinja import write_template
 from hydroshift.utils.plots import (
     plot_ams,
