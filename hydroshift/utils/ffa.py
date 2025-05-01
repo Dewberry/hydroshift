@@ -4,10 +4,9 @@ from typing import List
 
 import numpy as np
 import pandas as pd
-import rasterio
-import streamlit as st
-from scipy import stats
 from scipy.stats import pearson3, rv_continuous
+
+from hydroshift.utils.data_retrieval import Gage
 
 
 @dataclass
@@ -16,10 +15,14 @@ class LP3Analysis:
 
     gage_id: str
     peaks: list
-    regional_skew: float = None
+    use_map_skew: bool = False
     est_method: str = "MLE"
     label: str = ""
-    return_periods: List[str] = field(default_factory=lambda: [1.1, 2, 5, 10, 25, 50, 100, 500])
+    return_periods: List[str] = field(
+        default_factory=lambda: [1.1, 2, 5, 10, 25, 50, 100, 500]
+    )
+
+    # TODO:  Add california equation.  Likely best to subclass this.
 
     def __post_init__(self):
         """Customize init."""
@@ -40,9 +43,14 @@ class LP3Analysis:
         elif self.est_method == "LMOM":
             mean_log, std_log, l3 = l_moments(self.log_peaks)
             skew_log = l3 / (std_log * 0.7797)  # pseudo-stdev
-        if self.regional_skew is not None:
-            skew_log = self.regional_skew
+        if self.use_map_skew:
+            skew_log = self.weighted_skew
         return mean_log, std_log, skew_log
+
+    @property
+    def station_skew(self) -> tuple[float]:
+        """Skew of peaks."""
+        return pearson3.fit(self.log_peaks, method="MM")[0]
 
     @property
     def distribution(self) -> rv_continuous:
@@ -68,13 +76,41 @@ class LP3Analysis:
     def quantile_df(self):
         """Put quantiles into a dataframe."""
         _, qs = self.ffa_quantiles
-        return pd.DataFrame({"Recurrence Interval (years)": self.return_periods, "Discharge (cfs)": qs})
+        return pd.DataFrame(
+            {"Recurrence Interval (years)": self.return_periods, "Discharge (cfs)": qs}
+        )
 
+    @property
+    def map_skew(self):
+        """The skew value from the PeakFQ skew map, if one exists."""
+        gage = Gage(self.gage_id)
+        return gage.regional_skew
 
-@st.cache_data
-def get_skew_raster():
-    """Load the skew raster into memory."""
-    return rasterio.open(__file__.replace("ffa.py", "skewmap_4326.tif"))
+    @property
+    def mse_station_skew(self) -> float:
+        """Weighted station skew using USGS B17B method."""
+        abs_g = abs(self.station_skew)
+        if abs_g <= 0.9:
+            a = -0.33 + (0.08 * abs_g)
+        else:
+            a = -0.52 + (0.3 * abs_g)
+        if abs_g <= 1.5:
+            b = 0.94 - (0.26 * abs_g)
+        else:
+            a = 0.55
+        return 10 ** (a - (b * np.log10(len(self.peaks) / 10)))
+
+    @property
+    def weighted_skew(self) -> float:
+        """Weighted station skew using USGS B17B method."""
+        g_s = self.station_skew  # Station Skew
+        g_g = self.map_skew  # Generalized skew
+        mse_s = self.mse_station_skew  # MSE of station skew
+        mse_g = 0.302  # From peakfq user manual page 7.  TODO: Update for Cali equation
+
+        # From Handbook of hydrology pg 18.44
+        g_weighted = ((g_s / mse_s) + (g_g / mse_g)) / ((1 / mse_s) + (1 / mse_g))
+        return g_weighted
 
 
 def l_moments(series):
@@ -97,32 +133,3 @@ def l_moments(series):
     l2 = (2 * b_values[1]) - b_values[0]
     l3 = (6 * b_values[2]) - (6 * b_values[1]) + (1 * b_values[0])
     return l1, l2, l3
-
-
-@st.cache_data
-def log_pearson_iii(
-    peak_flows: pd.Series,
-    standard_return_periods: list = [1.1, 2, 5, 10, 25, 50, 100, 500],
-    method: str = "MLE",
-    coords: list = None,
-):
-    log_flows = np.log10(peak_flows.values)
-    if method == "MM":
-        skew_log, mean_log, std_log = stats.pearson3.fit(log_flows, method="MM")
-    elif method == "MLE":
-        skew_log, mean_log, std_log = stats.pearson3.fit(log_flows, method="MLE")
-    elif method == "LMOM":
-        mean_log, std_log, skew_log = l_moments(log_flows)
-
-    if coords:
-        src = get_skew_raster()
-        tmp_skew = src.sample(coords[0:2])
-        if tmp_skew == 9999:  # CA Equation
-            tmp_skew = (0 - 0.62) + 1.3 * (1 - np.exp(0 - ((coords[2]) / 6500) ^ 2))
-        if not np.isnan(tmp_skew):
-            skew_log = tmp_skew
-
-    return {
-        rp: int(10 ** stats.pearson3(skew=skew_log, loc=mean_log, scale=std_log).ppf(1 - 1 / rp))
-        for rp in standard_return_periods
-    }

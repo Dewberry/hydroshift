@@ -187,8 +187,10 @@ def plot_lp3(data: LP3Analysis | list[LP3Analysis]):
         )
 
     # Formatting
-    return_periods = [int(i) if i.is_integer() else round(i, 1) for i in i.return_periods]
-    if i.regional_skew is not None:
+    return_periods = [
+        int(i) if i.is_integer() else round(i, 1) for i in i.return_periods
+    ]
+    if i.use_map_skew:
         skew_txt = ""
     else:
         skew_txt = " (No Regional Skew)"
@@ -220,7 +222,12 @@ def plot_ams_seasonal(df, gage_id):
         color="season",
         title=f"Gage ID: {gage_id} | Seasonal AMS Ranked from Low to High",
         labels={"rank": "Rank", "peak_va": "Flow (cfs)"},
-        color_discrete_map={"Winter": "blue", "Spring": "green", "Summer": "orange", "Fall": "brown"},
+        color_discrete_map={
+            "Winter": "blue",
+            "Spring": "green",
+            "Summer": "orange",
+            "Fall": "brown",
+        },
     )
 
     fig.update_layout(
@@ -238,7 +245,13 @@ def plot_daily_mean(dv_df, gage_id):
     fig = go.Figure()
 
     fig.add_trace(
-        go.Scatter(x=dv_df.index, y=dv_df["00060_Mean"], mode="lines", line=dict(color="blue"), name="Daily Mean Flow")
+        go.Scatter(
+            x=dv_df.index,
+            y=dv_df["00060_Mean"],
+            mode="lines",
+            line=dict(color="blue"),
+            name="Daily Mean Flow",
+        )
     )
 
     fig.update_layout(
@@ -334,7 +347,11 @@ def combo_cpm(ams_df: pd.DataFrame, pval_df: pd.DataFrame, cps: dict = {}) -> Fi
     # Scatter plot for peak flow data
     fig.add_trace(
         go.Scatter(
-            x=ams_df.index, y=ams_df["peak_va"], mode="markers", marker=dict(size=6, color="blue"), name="Peak Flow"
+            x=ams_df.index,
+            y=ams_df["peak_va"],
+            mode="markers",
+            marker=dict(size=6, color="blue"),
+            name="Peak Flow",
         ),
         row=1,
         col=1,

@@ -2,6 +2,8 @@ import logging
 
 import numpy as np
 import pandas as pd
+import rasterio
+import requests
 import streamlit as st
 from dataretrieval import NoSitesError, nwis
 from scipy.stats import genpareto
@@ -16,19 +18,55 @@ class Gage:
         self.site_data = load_site_data(gage_id)
 
     @property
-    @st.cache_data(hash_funcs={"hydroshift.utils.data_retrieval.Gage": lambda x: hash(x.gage_id)})
+    @st.cache_data(
+        hash_funcs={"hydroshift.utils.data_retrieval.Gage": lambda x: hash(x.gage_id)}
+    )
     def latitude(self) -> float:
         """Latitude of gage."""
         return self.site_data.get("dec_lat_va")
 
     @property
-    @st.cache_data(hash_funcs={"hydroshift.utils.data_retrieval.Gage": lambda x: hash(x.gage_id)})
+    @st.cache_data(
+        hash_funcs={"hydroshift.utils.data_retrieval.Gage": lambda x: hash(x.gage_id)}
+    )
     def longitude(self) -> float:
         """Longitude of gage."""
         return self.site_data.get("dec_long_va")
 
     @property
-    @st.cache_data(hash_funcs={"hydroshift.utils.data_retrieval.Gage": lambda x: hash(x.gage_id)})
+    @st.cache_data(
+        hash_funcs={"hydroshift.utils.data_retrieval.Gage": lambda x: hash(x.gage_id)}
+    )
+    def elevation(self) -> float:
+        """Elevation of gage."""
+        return self.site_data.get("alt_va")
+
+    @property
+    @st.cache_data(
+        hash_funcs={"hydroshift.utils.data_retrieval.Gage": lambda x: hash(x.gage_id)}
+    )
+    def mean_basin_elevation(self) -> float:
+        """Average elevation of gage watershed."""
+        row = [
+            r for r in self.streamstats["characteristics"] if r["variableTypeID"] == 6
+        ]  # Get ELEV param
+        return row[0]["value"]
+
+    @property
+    @st.cache_data(
+        hash_funcs={"hydroshift.utils.data_retrieval.Gage": lambda x: hash(x.gage_id)}
+    )
+    def streamstats(self) -> pd.DataFrame:
+        """Load AMS for this site."""
+        r = requests.get(
+            f"https://streamstats.usgs.gov/gagestatsservices/stations/{self.gage_id}"
+        )
+        return r.json()
+
+    @property
+    @st.cache_data(
+        hash_funcs={"hydroshift.utils.data_retrieval.Gage": lambda x: hash(x.gage_id)}
+    )
     def ams(self) -> pd.DataFrame:
         """Load AMS for this site."""
         return get_ams(self.gage_id)
@@ -44,39 +82,60 @@ class Gage:
         return check_missing_dates(self.ams, "water_year")
 
     @property
-    @st.cache_data(hash_funcs={"hydroshift.utils.data_retrieval.Gage": lambda x: hash(x.gage_id)})
+    @st.cache_data(
+        hash_funcs={"hydroshift.utils.data_retrieval.Gage": lambda x: hash(x.gage_id)}
+    )
     def flow_stats(self) -> pd.DataFrame:
         """Load flow statistics for this site."""
         return get_flow_stats(self.gage_id)
 
-    @st.cache_data(hash_funcs={"hydroshift.utils.data_retrieval.Gage": lambda x: hash(x.gage_id)})
+    @st.cache_data(
+        hash_funcs={"hydroshift.utils.data_retrieval.Gage": lambda x: hash(x.gage_id)}
+    )
     def get_daily_values(self, start_date: str, end_date: str) -> pd.DataFrame:
         """Load daily mean discharge for this site."""
         return get_daily_values(self.gage_id, start_date, end_date)
 
-    @property
     def missing_dates_daily_values(self, start_date: str, end_date: str) -> list:
         """Get missing dates for mean daily value series."""
         return check_missing_dates(self.get_daily_values(start_date, end_date), "daily")
 
-    @st.cache_data(hash_funcs={"hydroshift.utils.data_retrieval.Gage": lambda x: hash(x.gage_id)})
-    def get_monthly_values(self, start_date: str, end_date: str) -> pd.DataFrame:
+    @st.cache_data(
+        hash_funcs={"hydroshift.utils.data_retrieval.Gage": lambda x: hash(x.gage_id)}
+    )
+    def get_monthly_values(self) -> pd.DataFrame:
         """Load monthly mean discharge for this site."""
-        return get_monthly_values(self.gage_id, start_date, end_date)
+        return get_monthly_values(self.gage_id)
 
     @property
-    def missing_dates_monthly_values(self, start_date: str, end_date: str) -> list:
+    def missing_dates_monthly_values(self) -> list:
         """Get missing dates for mean monthly value series."""
-        return check_missing_dates(self.get_monthly_values(start_date, end_date), "monthly")
+        return check_missing_dates(self.get_monthly_values(), "monthly")
 
     def raise_warnings(self):
         """Create any high level data warnings."""
         pass
 
     @property
-    def has_regional_skew(self):
+    def has_regional_skew(self) -> bool:
         """Check if gage has regional skew available."""
-        return False
+        return self.regional_skew is not None
+
+    @property
+    def regional_skew(self) -> float:
+        """The skew value from the PeakFQ skew map, if one exists."""
+        raster = get_skew_raster()
+        try:
+            val = [i for i in raster.sample([(self.longitude, self.latitude)])][0][0]
+            if val in raster.nodatavals:
+                return None
+        except (KeyError, IndexError):
+            return None
+        if val == 9999:  # California Eq. from USGS SIR 2010-5260 NL-ELEV eq
+            val = (0 - 0.62) + 1.3 * (
+                1 - np.exp(0 - ((self.mean_basin_elevation) / 6500) ** 2)
+            )
+        return val
 
 
 @st.cache_data
@@ -127,6 +186,7 @@ def load_site_data(gage_number: str) -> dict:
         "dec_long_va": float(resp["dec_long_va"].iloc[0]),
         "drain_area_va": resp["drain_area_va"].iloc[0],
         "huc_cd": resp["huc_cd"].iloc[0],
+        "alt_va": resp["alt_va"].iloc[0],
         "alt_datum_cd": resp["alt_datum_cd"].iloc[0],
     }
 
@@ -177,7 +237,9 @@ def check_missing_dates(df, freq):
 
     elif freq == "monthly":
         df["date"] = pd.to_datetime(df["date"])
-        full_range = pd.date_range(start=df["date"].min(), end=df["date"].max(), freq="MS")
+        full_range = pd.date_range(
+            start=df["date"].min(), end=df["date"].max(), freq="MS"
+        )
 
     elif freq == "water_year":
         if not isinstance(df.index, pd.DatetimeIndex):
@@ -185,7 +247,9 @@ def check_missing_dates(df, freq):
 
         df["water_year"] = df.index.year.where(df.index.month < 10, df.index.year + 1)
 
-        full_water_years = set(range(df["water_year"].min(), df["water_year"].max() + 1))
+        full_water_years = set(
+            range(df["water_year"].min(), df["water_year"].max() + 1)
+        )
         existing_water_years = set(df["water_year"])
         missing_years = sorted(full_water_years - existing_water_years)
 
@@ -217,5 +281,15 @@ def fake_ams() -> pd.DataFrame:
     rvs = np.concatenate(rvs, axis=0)
     dates = pd.date_range(start="1900-01-01", periods=len(rvs), freq="YE")
     water_year = dates.year
-    df = pd.DataFrame({"datetime": dates, "peak_va": rvs, "water_year": water_year}).set_index("datetime")
+    df = pd.DataFrame(
+        {"datetime": dates, "peak_va": rvs, "water_year": water_year}
+    ).set_index("datetime")
     return df
+
+
+@st.cache_resource
+def get_skew_raster():
+    """Load the skew raster into memory."""
+    return rasterio.open(
+        __file__.replace("utils/data_retrieval.py", "data/skewmap_4326.tif")
+    )

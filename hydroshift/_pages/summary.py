@@ -18,7 +18,7 @@ from hydroshift.utils.plots import (
 def section_ams(gage: Gage):
     """Display the AMS section."""
     if gage.ams is not None:
-        if gage.missing_dates_ams is not None:
+        if gage.missing_dates_ams is not None and len(gage.missing_dates_ams) > 0:
             st.warning(f"Missing {len(gage.missing_dates_ams)} AMS records")
         st.plotly_chart(plot_ams(gage.ams, gage.gage_id))
         show_data = st.checkbox("Show AMS Data Table")
@@ -42,19 +42,27 @@ def section_lp3(gage: Gage):
         opt_col_1, opt_col_2 = st.columns(2)
         with opt_col_1:
             est_method = st.selectbox(
-                "Estimation Method", ["L-moments", "Method of moments", "Maximum Likelihood"], index=2
+                "Estimation Method",
+                ["L-moments", "Method of moments", "Maximum Likelihood"],
+                index=1,
             )
-            est_method = {"L-moments": "LMOM", "Method of moments": "MOM", "Maximum Likelihood": "MLE"}[est_method]
+            est_method = {
+                "L-moments": "LMOM",
+                "Method of moments": "MOM",
+                "Maximum Likelihood": "MLE",
+            }[est_method]
         with opt_col_2:
-            st_skew = st.toggle("Use regional skew", value=False, disabled=not gage.has_regional_skew)
+            st_skew = st.toggle(
+                "Use regional skew", value=False, disabled=not gage.has_regional_skew
+            )
             if st_skew:
-                skew = gage.regional_skew
+                use_map = True
             else:
-                skew = None
+                use_map = False
 
         # Analysis and display
-        lp3 = LP3Analysis(gage.gage_id, gage.ams_vals, skew, est_method, "")
-        if gage.missing_dates_ams is not None:
+        lp3 = LP3Analysis(gage.gage_id, gage.ams_vals, use_map, est_method, "")
+        if gage.missing_dates_ams is not None and len(gage.missing_dates_ams) > 0:
             st.warning(f"Missing {len(gage.missing_dates_ams)} LP3 records")
         st.plotly_chart(plot_lp3(lp3), use_container_width=True)
         show_data = st.checkbox("Show LP3 Data Table")
@@ -67,7 +75,9 @@ def section_ams_seasonal(gage: Gage):
     if gage.ams is not None:
         if gage.missing_dates_ams:
             st.warning(f"Missing {len(gage.missing_dates_ams)} AMS seasonal records")
-        st.plotly_chart(plot_ams_seasonal(gage.ams, gage.gage_id), use_container_width=True)
+        st.plotly_chart(
+            plot_ams_seasonal(gage.ams, gage.gage_id), use_container_width=True
+        )
         show_data = st.checkbox("Show Ranked Seasonal Data Table")
         if show_data:
             st.dataframe(gage.ams)
@@ -89,7 +99,9 @@ def section_daily_mean(gage: Gage):
         if data is not None:
             if missing_dates:
                 st.warning(f"Missing {len(missing_dates)} daily mean records")
-            st.plotly_chart(plot_daily_mean(data, gage.gage_id), use_container_width=True)
+            st.plotly_chart(
+                plot_daily_mean(data, gage.gage_id), use_container_width=True
+            )
             show_data = st.checkbox("Show Daily Mean Data Table")
             if show_data:
                 st.dataframe(data)
@@ -98,11 +110,14 @@ def section_daily_mean(gage: Gage):
 def section_monthly_mean(gage: Gage):
     """Display the monthly mean discharge section."""
     data = gage.get_monthly_values()
-    missing_dates = gage.missing_dates_monthly_values()
+    missing_dates = gage.missing_dates_monthly_values
     if data is not None and "mean_va" in data.columns:
         if missing_dates:
             st.warning(f"Missing {len(missing_dates)} monthly records")
-        st.plotly_chart(plot_monthly_mean(data, st.session_state["gage_id"]), use_container_width=True)
+        st.plotly_chart(
+            plot_monthly_mean(data, st.session_state["gage_id"]),
+            use_container_width=True,
+        )
 
         show_data = st.checkbox("Show Monthly Mean Data Table")
         if show_data:
@@ -115,7 +130,9 @@ def summary():
     # Sidebar for input
     with st.sidebar:
         st.title("Settings")
-        st.session_state["gage_id"] = st.text_input("Enter USGS Gage Number:", st.session_state["gage_id"])
+        st.session_state["gage_id"] = st.text_input(
+            "Enter USGS Gage Number:", st.session_state["gage_id"]
+        )
         gage = Gage(st.session_state["gage_id"])
 
         # Toggle plots
@@ -132,7 +149,9 @@ def summary():
         write_template("data_sources_side_bar.html")
 
     if st.session_state["gage_id"]:
-        with st.spinner("Loading gage data..."):  # This is here to clear previous pages while data loads.
+        with st.spinner(
+            "Loading gage data..."
+        ):  # This is here to clear previous pages while data loads.
             pass
 
         col2, col3 = st.columns([6, 2], gap="large")
@@ -142,7 +161,12 @@ def summary():
                 st.subheader("Gage Location")
 
                 # Create Folium Map
-                mini_map = folium.Map(location=[gage.latitude, gage.longitude], zoom_start=7, width=200, height=200)
+                mini_map = folium.Map(
+                    location=[gage.latitude, gage.longitude],
+                    zoom_start=7,
+                    width=200,
+                    height=200,
+                )
                 folium.Marker(
                     [gage.latitude, gage.longitude],
                     popup=f"Gage {st.session_state['gage_id']}",
