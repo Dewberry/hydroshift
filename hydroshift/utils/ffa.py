@@ -76,9 +76,8 @@ class LP3Analysis:
     def quantile_df(self):
         """Put quantiles into a dataframe."""
         _, qs = self.ffa_quantiles
-        return pd.DataFrame(
-            {"Recurrence Interval (years)": self.return_periods, "Discharge (cfs)": qs}
-        )
+        ris = [str(i) for i in self.return_periods]
+        return pd.DataFrame({"Recurrence Interval (years)": ris, "Discharge (cfs)": qs})
 
     @property
     def map_skew(self):

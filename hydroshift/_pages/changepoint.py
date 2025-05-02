@@ -1,6 +1,7 @@
 """A tool to identify changepoints in hydrologic timeseries."""
 
 import traceback
+import uuid
 from collections import defaultdict
 from dataclasses import dataclass, field
 from io import BytesIO
@@ -22,6 +23,7 @@ from hydroshift.consts import (
 from hydroshift.utils.changepoint import cp_pvalue_batch, cpm_process_stream
 from hydroshift.utils.common import num_2_word
 from hydroshift.utils.data_retrieval import Gage
+from hydroshift.utils.ffa import LP3Analysis
 from hydroshift.utils.jinja import render_template, write_template
 from hydroshift.utils.plots import combo_cpm, plot_lp3
 
@@ -294,15 +296,22 @@ def define_variables():
     st.session_state.changepoint.validate_data()
 
 
+def refresh_data_editor():
+    """Set a new uuid for the data entry widget."""
+    st.session_state.data_editor_key = str(uuid.uuid4())
+
+
 def make_sidebar():
     """User control for analysis."""
     with st.sidebar:
         st.title("Settings")
+        st.session_state["gage_id"] = st.text_input(
+            "Enter USGS Gage Number:",
+            st.session_state["gage_id"],
+            on_change=refresh_data_editor,
+        )
+        st.session_state.gage = Gage(st.session_state["gage_id"])
         with st.form("changepoint_params"):
-            st.session_state["gage_id"] = st.text_input(
-                "Enter USGS Gage Number:", st.session_state["gage_id"]
-            )
-            st.session_state.gage = Gage(st.session_state["gage_id"])
             st.select_slider(
                 "False Positive Rate (1 in #)",
                 options=VALID_ARL0S,
@@ -324,6 +333,9 @@ def make_sidebar():
             init_data["Regime Start"] = pd.to_datetime(init_data["Regime Start"])
             init_data["Regime End"] = pd.to_datetime(init_data["Regime End"])
 
+            # Make data editor.  Unique key allows for refreshing
+            if "data_editor_key" not in st.session_state:
+                refresh_data_editor()
             start_config = st.column_config.DateColumn(
                 "Regime Start", format="D/M/YYYY"
             )
@@ -331,7 +343,7 @@ def make_sidebar():
             st.data_editor(
                 init_data,
                 num_rows="dynamic",
-                key="ffa_regimes",
+                key=st.session_state.data_editor_key,
                 column_config={"Regime Start": start_config, "Regime End": end_config},
             )
             st.form_submit_button(label="Run Analysis")
@@ -376,21 +388,26 @@ def get_changepoints(data: pd.DataFrame, arl0: int, burn_in: int) -> dict:
 @st.cache_data
 def ffa_analysis(data: pd.DataFrame, regimes: list):
     """Run multiple flood frequency analyses for different regimes."""
-    ffa_dict = {}
+    ffas = []
     for r in regimes:
         if "Regime Start" in r and "Regime End" in r:
             sub = data.loc[r["Regime Start"] : r["Regime End"]].copy()
-            peaks = sub["peak_va"]
-            lp3 = log_pearson_iii(peaks)
+            peaks = sub["peak_va"].values
             label = f'{r["Regime Start"]} - {r["Regime End"]}'
-            ffa_dict[label] = {"peaks": sub, "lp3": lp3}
-    if len(ffa_dict) > 0:
-        ffa_plot = plot_lp3(ffa_dict, st.session_state.gage_id, multi_series=True)
-        ffa_df = pd.DataFrame.from_dict(
-            {k: ffa_dict[k]["lp3"] for k in ffa_dict}, orient="index"
-        )
-        renames = {c: f"Q{c}" for c in ffa_df.columns}
-        ffa_df = ffa_df.rename(columns=renames)
+            lp3 = LP3Analysis(
+                st.session_state.gage_id,
+                peaks,
+                use_map_skew=False,
+                est_method="MOM",
+                label=label,
+            )
+            ffas.append(lp3)
+    if len(ffas) > 0:
+        ffa_plot = plot_lp3(ffas)
+        ffa_df = ffas[0].quantile_df[["Recurrence Interval (years)"]]
+        ffa_df = ffa_df.set_index("Recurrence Interval (years)")
+        for i in ffas:
+            ffa_df[i.label] = i.quantile_df["Discharge (cfs)"].values
         return ffa_plot, ffa_df
     else:
         return None, None
@@ -419,9 +436,10 @@ def make_body():
                 st.markdown(CP_T1_CAPTION)
 
         st.header("Modified flood frequency analysis")
-        if len(st.session_state.ffa_regimes["added_rows"]) > 0:
+        if len(st.session_state[st.session_state.data_editor_key]["added_rows"]) > 0:
             ffa_plot, ffa_df = ffa_analysis(
-                cpa.data, st.session_state.ffa_regimes["added_rows"]
+                cpa.gage.ams,
+                st.session_state[st.session_state.data_editor_key]["added_rows"],
             )
             if ffa_plot is not None and ffa_df is not None:
                 st.markdown(cpa.ffa_text)
