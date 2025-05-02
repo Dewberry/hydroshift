@@ -45,3 +45,12 @@ CP_F1_CAPTION = "**Figure 1.** Statistical changepoint analysis."
 CP_T1_CAPTION = "**Table 1.** Results of the changepoint analysis, listing dates when a significant change was identified for each test statistic."
 CP_F2_CAPTION = "**Figure 2.** Modified flood frequency analysis."
 CP_T2_CAPTION = "**Table 2.** Modified flood quantiles."
+
+### MISC ###
+REGULATION_MAP = {
+    "3": "Discharge affected by Dam Failure",
+    "5": "Discharge affected to unknown degree by Regulation or Diversion",
+    "6": "Discharge affected by Regulation or Diversion",
+    "9": "Discharge due to Snowmelt, Hurricane, Ice-Jam or Debris Dam breakup",
+    "C": "All or part of the record affected by Urbanization, Mining, Agricultural changes, Channelization, or other",
+}

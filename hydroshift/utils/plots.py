@@ -6,22 +6,40 @@ from plotly.graph_objects import Figure
 from plotly.subplots import make_subplots
 from scipy.stats import norm
 
+from hydroshift.utils.common import classify_regulation
 from hydroshift.utils.ffa import LP3Analysis
 
 
 def plot_ams(ams_df, gage_id, cps: dict = {}):
-    """Plots AMS (Annual Peak Flow) using Plotly with only markers (no line)."""
+    """Plot AMS (Annual Peak Flow) with markers colored by regulation status."""
     fig = go.Figure()
 
+    # Classify each point as regulated or not
+    ams_df["regulated"] = ams_df["peak_cd"].apply(classify_regulation)
+
+    # Plot non-regulated points
     fig.add_trace(
         go.Scatter(
-            x=ams_df.index,
-            y=ams_df["peak_va"],
+            x=ams_df[~ams_df["regulated"]].index,
+            y=ams_df[~ams_df["regulated"]]["peak_va"],
             mode="markers",
             marker=dict(size=6, color="blue"),
-            name="Peak Flow",
+            name="Non-Regulated",
         )
     )
+
+    # Plot regulated points
+    fig.add_trace(
+        go.Scatter(
+            x=ams_df[ams_df["regulated"]].index,
+            y=ams_df[ams_df["regulated"]]["peak_va"],
+            mode="markers",
+            marker=dict(size=6, color="red"),
+            name="Regulated",
+        )
+    )
+
+    # Plot changepoints if provided
     if cps:
         for ind, cp in enumerate(cps):
             x = ams_df.index[cp]
@@ -30,22 +48,22 @@ def plot_ams(ams_df, gage_id, cps: dict = {}):
                     x=[x, x],
                     y=[ams_df["peak_va"].min(), ams_df["peak_va"].max()],
                     mode="lines",
-                    line=dict(color="red", width=1, dash="dash"),
+                    line=dict(color="black", width=1, dash="dash"),
                     hovertext=[cps[cp], cps[cp]],
                     hoverinfo="text",
                     showlegend=False,
                 )
             )
-        # Label line
+        # Legend label for changepoint
         fig.add_trace(
             go.Scatter(
                 x=[0, 0],
                 y=[0, 0],
                 mode="lines",
-                line=dict(color="red", width=1, dash="dash"),  # Dashed style
-                hoverinfo="skip",  # Don't show hover on this trace
-                showlegend=True,  # Hide the legend entry for this trace
-                name="Statistically\nSignificant\nChangepoint",
+                line=dict(color="black", width=1, dash="dash"),
+                hoverinfo="skip",
+                showlegend=True,
+                name="Statistically Significant Changepoint",
             )
         )
 
@@ -67,16 +85,25 @@ def plot_ams(ams_df, gage_id, cps: dict = {}):
 
 
 def plot_flow_stats(stats_df, gage_id):
-    """Plots Flow Statistics using Plotly with correctly labeled legend entries."""
-    # Ensure the data is sorted properly
+    """Plot Flow Statistics using Plotly with month-abbreviation x-axis labels."""
+    # Ensure data is sorted
+    # Create a datetime column
+    stats_df["date"] = pd.to_datetime(
+        {
+            "year": 2000,  # dummy leap year to support Feb 29
+            "month": stats_df["month_nu"],
+            "day": stats_df["day_nu"],
+        },
+        errors="coerce",
+    )
     stats_df = stats_df.sort_values(by=["month_nu", "day_nu"])
     # Approximate day of year
     stats_df["day_of_year"] = stats_df["month_nu"] * 30 + stats_df["day_nu"]
     fig = go.Figure()
-    # Add percentile shaded regions with correct labels
+    # Percentile bands
     fig.add_trace(
         go.Scatter(
-            x=stats_df["day_of_year"],
+            x=stats_df["date"],
             y=stats_df["p95_va"],
             mode="lines",
             line=dict(color="lightblue"),
@@ -85,17 +112,18 @@ def plot_flow_stats(stats_df, gage_id):
     )
     fig.add_trace(
         go.Scatter(
-            x=stats_df["day_of_year"],
+            x=stats_df["date"],
             y=stats_df["p05_va"],
             mode="lines",
             line=dict(color="lightblue"),
             fill="tonexty",
             showlegend=False,
+            name="5th-95th Percentile",
         )
     )
     fig.add_trace(
         go.Scatter(
-            x=stats_df["day_of_year"],
+            x=stats_df["date"],
             y=stats_df["p90_va"],
             mode="lines",
             line=dict(color="blue"),
@@ -104,17 +132,18 @@ def plot_flow_stats(stats_df, gage_id):
     )
     fig.add_trace(
         go.Scatter(
-            x=stats_df["day_of_year"],
+            x=stats_df["date"],
             y=stats_df["p10_va"],
             mode="lines",
             line=dict(color="blue"),
             fill="tonexty",
             showlegend=False,
+            name="10th-90th Percentile",
         )
     )
     fig.add_trace(
         go.Scatter(
-            x=stats_df["day_of_year"],
+            x=stats_df["date"],
             y=stats_df["p75_va"],
             mode="lines",
             line=dict(color="darkblue"),
@@ -123,29 +152,37 @@ def plot_flow_stats(stats_df, gage_id):
     )
     fig.add_trace(
         go.Scatter(
-            x=stats_df["day_of_year"],
+            x=stats_df["date"],
             y=stats_df["p25_va"],
             mode="lines",
             line=dict(color="darkblue"),
             fill="tonexty",
             showlegend=False,
+            name="25th-75th Percentile",
         )
     )
-    # Add mean flow
+
+    # Mean flow line
     fig.add_trace(
         go.Scatter(
-            x=stats_df["day_of_year"],
+            x=stats_df["date"],
             y=stats_df["mean_va"],
             mode="lines+markers",
             line=dict(color="black"),
             name="Mean Flow",
         )
     )
+
+    # Format layout with month abbreviations
     fig.update_layout(
         title=f"{gage_id} | Daily Flow Statistics",
-        xaxis_title="Day of Year",
+        xaxis_title="Month",
         yaxis_title="Flow (cfs)",
         legend_title="Flow Statistics",
+        xaxis=dict(
+            tickformat="%b",  # abbreviated month name
+            dtick="M1",  # monthly ticks
+        ),
     )
     return fig
 

@@ -1,4 +1,5 @@
 import logging
+from typing import List
 
 import numpy as np
 import pandas as pd
@@ -7,6 +8,9 @@ import requests
 import streamlit as st
 from dataretrieval import NoSitesError, nwis
 from scipy.stats import genpareto
+
+from hydroshift.consts import REGULATION_MAP
+from hydroshift.utils.common import group_consecutive_years
 
 
 class Gage:
@@ -112,9 +116,52 @@ class Gage:
         """Get missing dates for mean monthly value series."""
         return check_missing_dates(self.get_monthly_values(), "monthly")
 
+    def get_regulation_summary(self, major_codes=["3", "9"]) -> List[str]:
+        """Run regulation summary for gage."""
+        df = self.ams
+        df["water_year"] = df.index.year.where(df.index.month < 10, df.index.year + 1)
+
+        regulation_years = {}
+
+        for index, row in df.iterrows():
+            if pd.notna(row.get("peak_cd")):
+                codes = str(row["peak_cd"]).split(",")
+                for code in codes:
+                    code_str = code.strip()
+                    try:
+                        code_key = str(int(float(code_str)))  # Normalize numeric codes
+                    except ValueError:
+                        code_key = code_str
+
+                    if code_key in REGULATION_MAP:
+                        regulation_years.setdefault(code_key, set()).add(
+                            row["water_year"]
+                        )
+
+        results = {"major": [], "minor": []}
+        for code, years in regulation_years.items():
+            grouped_year_ranges = group_consecutive_years(sorted(years))
+            formatted_ranges = ", ".join(grouped_year_ranges)
+            if code in major_codes:
+                results["major"].append(
+                    f"{REGULATION_MAP[code]} for water years {formatted_ranges}"
+                )
+            else:
+                results["minor"].append(
+                    f"{REGULATION_MAP[code]} for water years {formatted_ranges}"
+                )
+
+        return results
+
     def raise_warnings(self):
         """Create any high level data warnings."""
-        pass
+        regulation_results = self.get_regulation_summary()
+        if regulation_results["minor"]:
+            for result in regulation_results["minor"]:
+                st.warning(result)
+        if regulation_results["major"]:
+            for result in regulation_results["major"]:
+                st.error(result)
 
     @property
     def has_regional_skew(self) -> bool:
@@ -162,7 +209,7 @@ def get_ams(gage_id):
 def get_flow_stats(gage_id):
     """Fetches flow statistics for a given gage."""
     try:
-        df = nwis.get_stats(sites=gage_id, ssl_check=True)[0]
+        df = nwis.get_stats(sites=gage_id, parameterCd="00060", ssl_check=True)[0]
     except IndexError:
         logging.warning(f"Flow stats could not be found for gage_id: {gage_id}")
         return None
