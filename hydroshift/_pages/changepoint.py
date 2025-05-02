@@ -298,42 +298,46 @@ def make_sidebar():
     """User control for analysis."""
     with st.sidebar:
         st.title("Settings")
-        st.session_state["gage_id"] = st.text_input(
-            "Enter USGS Gage Number:", st.session_state["gage_id"]
-        )
-        st.session_state.gage = Gage(st.session_state["gage_id"])
-        st.select_slider(
-            "False Positive Rate (1 in #)",
-            options=VALID_ARL0S,
-            value=1000,
-            key="arlo_slider",
-            label_visibility="visible",
-        )
+        with st.form("changepoint_params"):
+            st.session_state["gage_id"] = st.text_input(
+                "Enter USGS Gage Number:", st.session_state["gage_id"]
+            )
+            st.session_state.gage = Gage(st.session_state["gage_id"])
+            st.select_slider(
+                "False Positive Rate (1 in #)",
+                options=VALID_ARL0S,
+                value=1000,
+                key="arlo_slider",
+                label_visibility="visible",
+            )
 
-        st.number_input(
-            "Burn-in Period",
-            0,
-            100,
-            20,
-            key="burn_in",
-            label_visibility="visible",
-        )
-        st.text("Flood Frequency Analysis")
-        init_data = pd.DataFrame(columns=["Regime Start", "Regime End"])
-        init_data["Regime Start"] = pd.to_datetime(init_data["Regime Start"])
-        init_data["Regime End"] = pd.to_datetime(init_data["Regime End"])
+            st.number_input(
+                "Burn-in Period",
+                0,
+                100,
+                20,
+                key="burn_in",
+                label_visibility="visible",
+            )
+            st.text("Flood Frequency Analysis")
+            init_data = pd.DataFrame(columns=["Regime Start", "Regime End"])
+            init_data["Regime Start"] = pd.to_datetime(init_data["Regime Start"])
+            init_data["Regime End"] = pd.to_datetime(init_data["Regime End"])
 
-        start_config = st.column_config.DateColumn("Regime Start", format="D/M/YYYY")
-        end_config = st.column_config.DateColumn("Regime End", format="D/M/YYYY")
-        st.data_editor(
-            init_data,
-            num_rows="dynamic",
-            key="ffa_regimes",
-            column_config={"Regime Start": start_config, "Regime End": end_config},
-        )
+            start_config = st.column_config.DateColumn(
+                "Regime Start", format="D/M/YYYY"
+            )
+            end_config = st.column_config.DateColumn("Regime End", format="D/M/YYYY")
+            st.data_editor(
+                init_data,
+                num_rows="dynamic",
+                key="ffa_regimes",
+                column_config={"Regime Start": start_config, "Regime End": end_config},
+            )
+            st.form_submit_button(label="Run Analysis")
 
-    st.divider()
-    write_template("footer.html")
+        st.divider()
+        write_template("data_sources_side_bar.html")
 
 
 def run_analysis():
