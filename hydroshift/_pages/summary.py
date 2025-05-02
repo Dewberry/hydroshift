@@ -96,7 +96,6 @@ def section_daily_mean(gage: Gage):
         end_date = st.date_input("End Date", value=date(2024, 12, 31))
 
     data, missing_dates = gage.get_daily_values(
-        st.session_state["gage_id"],
         start_date.strftime("%Y-%m-%d"),
         end_date.strftime("%Y-%m-%d"),
     )
