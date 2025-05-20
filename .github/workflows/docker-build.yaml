@@ -46,12 +46,11 @@ jobs:
         id: set_tags
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          GH_REPO: ${{ github.repository }}
         run: |
           if [[ "${{ inputs.branch }}" == "main" ]]; then
-            echo "TAGS=$ECR_REGISTRY/$GH_REPO:latest,$ECR_REGISTRY/$GH_REPO:${{ inputs.version }}" >> $GITHUB_OUTPUT
+            echo "TAGS=$ECR_REGISTRY/hydroshift:latest,$ECR_REGISTRY/hydroshift:${{ inputs.version }}" >> $GITHUB_OUTPUT
           else
-            echo "TAGS=$ECR_REGISTRY/$GH_REPO:pr-${{ github.event.pull_request.number }}" >> $GITHUB_OUTPUT
+            echo "TAGS=$ECR_REGISTRY/hydroshift:pr-${{ github.event.pull_request.number }}" >> $GITHUB_OUTPUT
           fi
 
       - name: Set up QEMU
