@@ -1,0 +1,14 @@
+services:
+  client:
+    container_name: client
+    build:
+      context: ./
+    networks:
+      - hydroshift
+    ports:
+      - 8501:8501
+    restart: unless-stopped
+
+networks:
+  hydroshift:
+    driver: bridge
