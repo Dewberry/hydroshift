@@ -70,7 +70,7 @@ jobs:
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
-          context: .
+          context: ./.devcontainer
           platforms: ${{ inputs.platforms }}
           push: ${{ inputs.push_to_registry }}
           tags: ${{ steps.set_tags.outputs.TAGS }}
