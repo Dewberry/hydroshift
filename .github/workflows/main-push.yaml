@@ -45,3 +45,4 @@ jobs:
       version: ${{ needs.get-version.outputs.version }}
       branch: 'main'
       platforms: 'linux/amd64'
+    secrets: inherit
