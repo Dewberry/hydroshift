@@ -1,0 +1,33 @@
+name: PR Checks
+
+on:
+  pull_request:
+    branches: [ "main" ]
+    paths:
+      - 'hydroshift/**'
+      - 'tests/**'
+      - '/.devcontainer/Dockerfile'
+      - '.dockerignore'
+      - '.github/workflows/**'
+      - 'pyproject.toml'
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+
+jobs:
+  get-version:
+    name: Extract Package Version
+    uses: ./.github/workflows/get-version.yaml
+
+  docker-build-test:
+    name: Test Docker Build
+    needs: get-version
+    uses: ./.github/workflows/docker-build.yaml
+    with:
+      push_to_registry: false
+      version: ${{ needs.get-version.outputs.version }}
+      branch: ${{ github.base_ref }}
+      platforms: 'linux/amd64'
+    secrets: inherit
