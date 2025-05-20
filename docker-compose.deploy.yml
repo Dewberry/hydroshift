@@ -1,0 +1,16 @@
+services:
+  client:
+    container_name: client
+    init: true
+    image: ${ECR_AWS_ACCOUNT_ID}.dkr.ecr.${ECR_AWS_REGION}.amazonaws.com/${ECR_CLIENT_IMAGE_TAG}
+    networks:
+      - hydroshift
+    ports:
+      - 8501:8501
+    restart: unless-stopped
+    mem_limit: 4GB
+    mem_reservation: 2GB
+
+networks:
+  hydroshift:
+    driver: bridge
