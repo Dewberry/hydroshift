@@ -30,3 +30,4 @@ jobs:
       version: ${{ needs.get-version.outputs.version }}
       branch: ${{ github.base_ref }}
       platforms: 'linux/amd64'
+    secrets: inherit

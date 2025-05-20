@@ -17,12 +17,18 @@ on:
         type: string
         default: 'linux/amd64'
         required: false
+    secrets:
+      AWS_ACCOUNT_NUMBER:
+        required: true
+      AWS_ROLE:
+        required: true
+      AWS_REGION:
+        required: true
 
 permissions:
   contents: read
   packages: write
   id-token: write
-  actions: read
 
 jobs:
   build-docker:
