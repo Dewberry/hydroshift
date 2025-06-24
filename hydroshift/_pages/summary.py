@@ -54,9 +54,7 @@ def section_lp3(gage: Gage):
                 "Maximum Likelihood": "MLE",
             }[est_method]
         with opt_col_2:
-            st_skew = st.toggle(
-                "Use regional skew", value=False, disabled=not gage.has_regional_skew
-            )
+            st_skew = st.toggle("Use regional skew", value=False, disabled=not gage.has_regional_skew)
             if st_skew:
                 use_map = True
             else:
@@ -77,9 +75,7 @@ def section_ams_seasonal(gage: Gage):
     if gage.ams is not None:
         if gage.missing_dates_ams:
             st.warning(f"Missing {len(gage.missing_dates_ams)} AMS seasonal records")
-        st.plotly_chart(
-            plot_ams_seasonal(gage.ams, gage.gage_id), use_container_width=True
-        )
+        st.plotly_chart(plot_ams_seasonal(gage.ams, gage.gage_id), use_container_width=True)
         show_data = st.checkbox("Show Ranked Seasonal Data Table")
         if show_data:
             st.dataframe(gage.ams)
@@ -95,7 +91,7 @@ def section_daily_mean(gage: Gage):
         start_date = st.date_input("Start Date", value=date(2024, 1, 1))
         end_date = st.date_input("End Date", value=date(2024, 12, 31))
 
-    data, missing_dates = gage.get_daily_values(
+    data = gage.get_daily_values(
         start_date.strftime("%Y-%m-%d"),
         end_date.strftime("%Y-%m-%d"),
     )
@@ -104,9 +100,7 @@ def section_daily_mean(gage: Gage):
         if data is not None:
             if missing_dates:
                 st.warning(f"Missing {len(missing_dates)} daily mean records")
-            st.plotly_chart(
-                plot_daily_mean(data, gage.gage_id), use_container_width=True
-            )
+            st.plotly_chart(plot_daily_mean(data, gage.gage_id), use_container_width=True)
             show_data = st.checkbox("Show Daily Mean Data Table")
             if show_data:
                 st.dataframe(data)
@@ -135,9 +129,7 @@ def summary():
     # Sidebar for input
     with st.sidebar:
         st.title("Settings")
-        st.session_state["gage_id"] = st.text_input(
-            "Enter USGS Gage Number:", st.session_state["gage_id"]
-        )
+        st.session_state["gage_id"] = st.text_input("Enter USGS Gage Number:", st.session_state["gage_id"])
         gage = Gage(st.session_state["gage_id"])
 
         # Toggle plots
@@ -154,9 +146,7 @@ def summary():
         write_template("data_sources_side_bar.html")
 
     if st.session_state["gage_id"]:
-        with st.spinner(
-            "Loading gage data..."
-        ):  # This is here to clear previous pages while data loads.
+        with st.spinner("Loading gage data..."):  # This is here to clear previous pages while data loads.
             pass
 
         col2, col3 = st.columns([6, 2], gap="large")
