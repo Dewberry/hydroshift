@@ -1,4 +1,5 @@
 import streamlit as st
+from hydroshift._pages import summary
 from hydroshift.consts import DEFAULT_GAGE
 from hydroshift.utils.jinja import write_template
 from PIL import Image
@@ -6,9 +7,8 @@ from PIL import Image
 
 def homepage():
     """Landing page for app."""
-    st.set_page_config(
-        layout="centered",
-    )
+    st.session_state["gage_id"] = None
+    st.set_page_config(layout="centered")
 
     st.markdown(
         """
@@ -28,15 +28,16 @@ def homepage():
         div.stButton > button {
             border-radius: 12px;
             font-weight: 600;
-            background: linear-gradient(135deg, #00c6ff, #0072ff);
+            background: linear-gradient(135deg, #00c6ff, #4287f5);
             border: none;
             color: white;
             transition: 0.2s ease-in-out;
         }
         div.stButton > button:hover {
-            background: linear-gradient(135deg, #00a6e6, #005ecc);
+            background: linear-gradient(135deg, #ff7e33, #f5a742);
             transform: translateY(-2px);
             box-shadow: 0px 4px 12px rgba(0,0,0,0.25);
+            color: black;
         }
         </style>
         """,
@@ -66,6 +67,6 @@ def homepage():
     if demo:
         st.session_state["gage_id"] = DEFAULT_GAGE
     if st.session_state.get("gage_id") is not None:
-        st.rerun()
+        st.switch_page(st.Page(summary, title="Gage Summary"))
 
     write_template("footer.html")
