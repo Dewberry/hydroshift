@@ -1,4 +1,6 @@
 """Shared variables."""
+# Performance
+MAX_CACHE_ENTRIES = 25
 
 # UI
 DEFAULT_GAGE = "01151500"

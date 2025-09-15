@@ -9,7 +9,7 @@ import streamlit as st
 from dataretrieval import NoSitesError, nwis
 from scipy.stats import genpareto
 
-from hydroshift.consts import REGULATION_MAP
+from hydroshift.consts import REGULATION_MAP, MAX_CACHE_ENTRIES
 from hydroshift.utils.common import group_consecutive_years
 
 
@@ -23,7 +23,8 @@ class Gage:
 
     @property
     @st.cache_data(
-        hash_funcs={"hydroshift.utils.data_retrieval.Gage": lambda x: hash(x.gage_id)}
+        hash_funcs={"hydroshift.utils.data_retrieval.Gage": lambda x: hash(x.gage_id)},
+        max_entries=MAX_CACHE_ENTRIES
     )
     def latitude(self) -> float:
         """Latitude of gage."""
@@ -31,7 +32,8 @@ class Gage:
 
     @property
     @st.cache_data(
-        hash_funcs={"hydroshift.utils.data_retrieval.Gage": lambda x: hash(x.gage_id)}
+        hash_funcs={"hydroshift.utils.data_retrieval.Gage": lambda x: hash(x.gage_id)},
+        max_entries=MAX_CACHE_ENTRIES
     )
     def longitude(self) -> float:
         """Longitude of gage."""
@@ -39,7 +41,8 @@ class Gage:
 
     @property
     @st.cache_data(
-        hash_funcs={"hydroshift.utils.data_retrieval.Gage": lambda x: hash(x.gage_id)}
+        hash_funcs={"hydroshift.utils.data_retrieval.Gage": lambda x: hash(x.gage_id)},
+        max_entries=MAX_CACHE_ENTRIES
     )
     def elevation(self) -> float:
         """Elevation of gage."""
@@ -47,7 +50,8 @@ class Gage:
 
     @property
     @st.cache_data(
-        hash_funcs={"hydroshift.utils.data_retrieval.Gage": lambda x: hash(x.gage_id)}
+        hash_funcs={"hydroshift.utils.data_retrieval.Gage": lambda x: hash(x.gage_id)},
+        max_entries=MAX_CACHE_ENTRIES
     )
     def mean_basin_elevation(self) -> float:
         """Average elevation of gage watershed."""
@@ -58,7 +62,8 @@ class Gage:
 
     @property
     @st.cache_data(
-        hash_funcs={"hydroshift.utils.data_retrieval.Gage": lambda x: hash(x.gage_id)}
+        hash_funcs={"hydroshift.utils.data_retrieval.Gage": lambda x: hash(x.gage_id)},
+        max_entries=MAX_CACHE_ENTRIES
     )
     def streamstats(self) -> pd.DataFrame:
         """Load AMS for this site."""
@@ -69,7 +74,8 @@ class Gage:
 
     @property
     @st.cache_data(
-        hash_funcs={"hydroshift.utils.data_retrieval.Gage": lambda x: hash(x.gage_id)}
+        hash_funcs={"hydroshift.utils.data_retrieval.Gage": lambda x: hash(x.gage_id)},
+        max_entries=MAX_CACHE_ENTRIES
     )
     def ams(self) -> pd.DataFrame:
         """Load AMS for this site."""
@@ -87,14 +93,16 @@ class Gage:
 
     @property
     @st.cache_data(
-        hash_funcs={"hydroshift.utils.data_retrieval.Gage": lambda x: hash(x.gage_id)}
+        hash_funcs={"hydroshift.utils.data_retrieval.Gage": lambda x: hash(x.gage_id)},
+        max_entries=MAX_CACHE_ENTRIES
     )
     def flow_stats(self) -> pd.DataFrame:
         """Load flow statistics for this site."""
         return get_flow_stats(self.gage_id)
 
     @st.cache_data(
-        hash_funcs={"hydroshift.utils.data_retrieval.Gage": lambda x: hash(x.gage_id)}
+        hash_funcs={"hydroshift.utils.data_retrieval.Gage": lambda x: hash(x.gage_id)},
+        max_entries=MAX_CACHE_ENTRIES
     )
     def get_daily_values(self, start_date: str, end_date: str) -> pd.DataFrame:
         """Load daily mean discharge for this site."""
@@ -105,7 +113,8 @@ class Gage:
         return check_missing_dates(self.get_daily_values(start_date, end_date), "daily")
 
     @st.cache_data(
-        hash_funcs={"hydroshift.utils.data_retrieval.Gage": lambda x: hash(x.gage_id)}
+        hash_funcs={"hydroshift.utils.data_retrieval.Gage": lambda x: hash(x.gage_id)},
+        max_entries=MAX_CACHE_ENTRIES
     )
     def get_monthly_values(self) -> pd.DataFrame:
         """Load monthly mean discharge for this site."""
@@ -185,7 +194,7 @@ class Gage:
         return val
 
 
-@st.cache_data
+@st.cache_data(max_entries=MAX_CACHE_ENTRIES)
 def get_ams(gage_id):
     """Fetches Annual Maximum Series (AMS) peak flow data for a given gage."""
     try:
@@ -205,7 +214,7 @@ def get_ams(gage_id):
     return df
 
 
-@st.cache_data
+@st.cache_data(max_entries=MAX_CACHE_ENTRIES)
 def get_flow_stats(gage_id):
     """Fetches flow statistics for a given gage."""
     try:
@@ -217,7 +226,7 @@ def get_flow_stats(gage_id):
     return df
 
 
-@st.cache_data
+@st.cache_data(max_entries=MAX_CACHE_ENTRIES)
 def load_site_data(gage_number: str) -> dict:
     """Query NWIS for site information"""
     try:
@@ -238,7 +247,7 @@ def load_site_data(gage_number: str) -> dict:
     }
 
 
-@st.cache_data
+@st.cache_data(max_entries=MAX_CACHE_ENTRIES)
 def get_daily_values(gage_id, start_date, end_date):
     """Fetches mean daily flow values for a given gage."""
     try:
@@ -250,7 +259,7 @@ def get_daily_values(gage_id, start_date, end_date):
     return dv
 
 
-@st.cache_data
+@st.cache_data(max_entries=MAX_CACHE_ENTRIES)
 def get_monthly_values(gage_id):
     """Fetches mean monthly flow values for a given gage and assigns a datetime column based on the year and month."""
     try:
