@@ -37,6 +37,9 @@ METRICS = ["Cramer-von-Mises", "Kolmogorov-Smirnov", "Lepage", "Mann-Whitney", "
 ### External URLs ###
 NWIS_URL = "https://waterdata.usgs.gov/nwis?"
 PEAKFQ_URL = "https://www.usgs.gov/tools/peakfq"
+DEWBERRY_URL = "https://www.dewberry.com/"
+GITHUB_URL = "https://github.com/Dewberry/non-stationarity-tool"
+ADMIN_EMAIL = "klawson@dewberry.com"
 
 ### Text snippets ###
 DATA_SOURCES_STR = f"Data: [USGS NWIS]({NWIS_URL}) and [USGS PEAKFQ]({PEAKFQ_URL})"
@@ -54,3 +57,14 @@ REGULATION_MAP = {
     "9": "Discharge due to Snowmelt, Hurricane, Ice-Jam or Debris Dam breakup",
     "C": "All or part of the record affected by Urbanization, Mining, Agricultural changes, Channelization, or other",
 }
+
+### IMAGES ###
+def svg2text(path: str) -> str:
+    with open(path, "r") as f:
+        svg = f.read()
+    if svg.startswith("<?xml"):
+        svg = svg.split("?>", 1)[1]
+    return svg.strip()
+GITHUB_SVG = svg2text("hydroshift/images/github_logo.svg")
+DEWBERRY_SVG = svg2text("hydroshift/images/dewberry_logo.svg")
+MAIL_SVG = svg2text("hydroshift/images/mail_logo.svg")

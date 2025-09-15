@@ -7,6 +7,7 @@ requires-python = ">=3.12"
 dependencies = [
     "dataretrieval==1.0.11",
     "folium==0.19.4",
+    "friendlywords>=1.2.0",
     "jinja2>=3.1.6",
     "kaleido==0.2.0",
     "leafmap>=0.43.1",
@@ -18,7 +19,8 @@ dependencies = [
     "radian>=0.6.13",
     "rasterio>=1.4.3",
     "scipy==1.15.2",
-    "streamlit==1.42.2",
+    "streamlit==1.49.0",
+    "streamlit-cookies-manager>=0.2.0",
     "streamlit-folium==0.24.0",
 ]
 

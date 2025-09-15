@@ -1,4 +1,5 @@
 from datetime import date
+import time
 
 import folium
 import streamlit as st
@@ -125,7 +126,10 @@ def section_monthly_mean(gage: Gage):
 
 def summary():
     """Display summary plots for various timeseries associated with this gage."""
+    with st.spinner("Loading gage data..."):  # This is here to clear previous pages while data loads.
+        time.sleep(0.1)
     st.set_page_config(page_title="Gage Summary", layout="wide")
+
     # Sidebar for input
     with st.sidebar:
         st.title("Settings")
@@ -146,44 +150,38 @@ def summary():
         write_template("data_sources_side_bar.html")
 
     if st.session_state["gage_id"]:
-        with st.spinner("Loading gage data..."):  # This is here to clear previous pages while data loads.
-            pass
-
-        col2, col3 = st.columns([6, 2], gap="large")
-
         if gage.latitude and gage.longitude:
-            with col3:  # Site map
-                st.subheader("Gage Location")
+            with st.container(border=True):
+                info_col, map_col = st.columns(2)
+                with map_col:  # Site map
+                    mini_map = folium.Map(
+                        location=[gage.latitude, gage.longitude],
+                        zoom_start=7,
+                        width=450,
+                        height=200,
+                    )
+                    folium.Marker(
+                        [gage.latitude, gage.longitude],
+                        popup=f"Gage {st.session_state['gage_id']}",
+                        icon=folium.Icon(color="green"),
+                    ).add_to(mini_map)
+                    st_folium(mini_map, use_container_width=True, height=250)
+                with info_col:
+                    # Display site metadata
+                    st.subheader("Site Information")
+                    write_template("site_summary.md", gage.site_data)
+                    st.link_button("Go to USGS", f'https://waterdata.usgs.gov/monitoring-location/USGS-{st.session_state["gage_id"]}/')
 
-                # Create Folium Map
-                mini_map = folium.Map(
-                    location=[gage.latitude, gage.longitude],
-                    zoom_start=7,
-                    width=200,
-                    height=200,
-                )
-                folium.Marker(
-                    [gage.latitude, gage.longitude],
-                    popup=f"Gage {st.session_state['gage_id']}",
-                    icon=folium.Icon(color="green"),
-                ).add_to(mini_map)
-                st_folium(mini_map, width=250, height=250)
-
-                # Display site metadata
-                st.subheader("Site Information")
-                write_template("site_summary.md", gage.site_data)
-
-        with col2:  # Center column for plots
-            gage.raise_warnings()
-            if show_ams:
-                section_ams(gage)
-            if show_daily_stats:
-                section_flow_stats(gage)
-            if show_lp3:
-                section_lp3(gage)
-            if show_ams_seasonal:
-                section_ams_seasonal(gage)
-            if show_daily_mean:
-                section_daily_mean(gage)
-            if show_monthly_mean:
-                section_monthly_mean(gage)
+        gage.raise_warnings()
+        if show_ams:
+            section_ams(gage)
+        if show_daily_stats:
+            section_flow_stats(gage)
+        if show_lp3:
+            section_lp3(gage)
+        if show_ams_seasonal:
+            section_ams_seasonal(gage)
+        if show_daily_mean:
+            section_daily_mean(gage)
+        if show_monthly_mean:
+            section_monthly_mean(gage)
