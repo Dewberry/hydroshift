@@ -9,10 +9,7 @@ def navigator():
     """Make sidebar for multi-page navigation."""
     # Define general style
     im = Image.open("hydroshift/images/favicon.ico")
-    st.set_page_config(
-        page_title="HydroShift",
-        page_icon=im,
-    )
+    st.set_page_config(page_title="HydroShift",page_icon=im)
 
     # Initialize state
     if "session_id" not in st.session_state:
