@@ -20,13 +20,15 @@ def navigator():
 
     # Define pages
     changepoint_pg = st.Page(changepoint, title="Changepoint Analysis")
-    summary_pg = st.Page(summary, title="Gage Summary", default=True)
-    home = st.Page(homepage, title="Homepage", default=True)
+    summary_pg = st.Page(summary, title="Gage Summary")
+    home = st.Page(homepage, title="Homepage")
 
     # Setup sidebar
     if st.session_state["gage_id"] is not None:
-        nav = st.navigation([summary_pg, changepoint_pg], position="sidebar")
+        summary_pg._default = True
+        nav = st.navigation([home, summary_pg, changepoint_pg], position="sidebar")
     else:
+        home._default = True
         nav = st.navigation([home], position="hidden")
     nav.run()
 
