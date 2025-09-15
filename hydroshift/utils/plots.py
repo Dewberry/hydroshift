@@ -6,6 +6,7 @@ from plotly.graph_objects import Figure
 from plotly.subplots import make_subplots
 from scipy.stats import norm
 
+from hydroshift.consts import MAX_CACHE_ENTRIES
 from hydroshift.utils.common import classify_regulation
 from hydroshift.utils.ffa import LP3Analysis
 
@@ -370,7 +371,7 @@ def plot_cpm_heatmap(pval_df: pd.DataFrame):
     return fig
 
 
-@st.cache_data
+@st.cache_data(max_entries=MAX_CACHE_ENTRIES)
 def combo_cpm(ams_df: pd.DataFrame, pval_df: pd.DataFrame, cps: dict = {}) -> Figure:
     """Plot a change point model with peak flows and statistical analysis."""
     # Create subplots

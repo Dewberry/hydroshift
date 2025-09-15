@@ -17,6 +17,7 @@ from hydroshift.consts import (
     CP_F2_CAPTION,
     CP_T1_CAPTION,
     CP_T2_CAPTION,
+    MAX_CACHE_ENTRIES,
     METRICS,
     VALID_ARL0S,
 )
@@ -361,7 +362,7 @@ def run_analysis():
     )
 
 
-@st.cache_data
+@st.cache_data(max_entries=MAX_CACHE_ENTRIES)
 def get_pvalues(data: pd.DataFrame) -> pd.DataFrame:
     """Get pvalue df associated with changepoint analysis."""
     ts = data["peak_va"].values
@@ -371,7 +372,7 @@ def get_pvalues(data: pd.DataFrame) -> pd.DataFrame:
     return pval_df
 
 
-@st.cache_data
+@st.cache_data(max_entries=MAX_CACHE_ENTRIES)
 def get_changepoints(data: pd.DataFrame, arl0: int, burn_in: int) -> dict:
     """Run the process stream analysis and return changepoints identified."""
     ts = data["peak_va"].values
@@ -385,7 +386,7 @@ def get_changepoints(data: pd.DataFrame, arl0: int, burn_in: int) -> dict:
     return cp_dict
 
 
-@st.cache_data
+@st.cache_data(max_entries=MAX_CACHE_ENTRIES)
 def ffa_analysis(data: pd.DataFrame, regimes: list):
     """Run multiple flood frequency analyses for different regimes."""
     ffas = []
