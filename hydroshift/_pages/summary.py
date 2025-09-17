@@ -105,11 +105,13 @@ def section_daily_mean(gage: Gage):
             show_data = st.checkbox("Show Daily Mean Data Table")
             if show_data:
                 st.dataframe(data)
+        else:
+            st.error(f"Could not find daily mean data for period {start_date} - {end_date}")
 
 
 def section_monthly_mean(gage: Gage):
     """Display the monthly mean discharge section."""
-    data = gage.get_monthly_values()
+    data = gage.monthly_values
     missing_dates = gage.missing_dates_monthly_values
     if data is not None and "mean_va" in data.columns:
         if missing_dates:
@@ -138,12 +140,12 @@ def summary():
 
         # Toggle plots
         st.markdown("### Toggle Plots")
-        show_ams = st.checkbox("Annual Peak Flow (AMS)", value=True)
-        show_daily_stats = st.checkbox("Daily Flow Statistics", value=True)
-        show_lp3 = st.checkbox("Log-Pearson III (LP3) Analysis", value=True)
-        show_ams_seasonal = st.checkbox("AMS Seasonal Ranking", value=True)
-        show_daily_mean = st.checkbox("Daily Mean Streamflow", value=True)
-        show_monthly_mean = st.checkbox("Monthly Mean Streamflow", value=True)
+        show_ams = st.checkbox("Annual Peak Flow (AMS)", value=gage.ams_valid, disabled=not gage.ams_valid)
+        show_daily_stats = st.checkbox("Daily Flow Statistics", value=gage.flow_stats_valid, disabled=not gage.flow_stats_valid)
+        show_lp3 = st.checkbox("Log-Pearson III (LP3) Analysis", value=gage.ams_valid, disabled=not gage.ams_valid)
+        show_ams_seasonal = st.checkbox("AMS Seasonal Ranking", value=gage.ams_valid, disabled=not gage.ams_valid)
+        show_daily_mean = st.checkbox("Daily Mean Streamflow", value=gage.dv_valid, disabled=not gage.dv_valid)
+        show_monthly_mean = st.checkbox("Monthly Mean Streamflow", value=gage.monthly_values_valid, disabled=not gage.monthly_values_valid)
 
         # Data sources
         st.divider()

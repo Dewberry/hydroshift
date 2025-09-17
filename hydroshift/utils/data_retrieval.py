@@ -1,4 +1,7 @@
+from functools import cached_property
 import logging
+import time
+import traceback
 from typing import List
 
 import numpy as np
@@ -20,6 +23,7 @@ class Gage:
         """Construct class."""
         self.gage_id = gage_id
         self.site_data = load_site_data(gage_id)
+        self.data_catalog = get_site_catalog(gage_id)
 
     @property
     @st.cache_data(
@@ -112,18 +116,19 @@ class Gage:
         """Get missing dates for mean daily value series."""
         return check_missing_dates(self.get_daily_values(start_date, end_date), "daily")
 
+    @property
     @st.cache_data(
         hash_funcs={"hydroshift.utils.data_retrieval.Gage": lambda x: hash(x.gage_id)},
         max_entries=MAX_CACHE_ENTRIES
     )
-    def get_monthly_values(self) -> pd.DataFrame:
+    def monthly_values(self) -> pd.DataFrame:
         """Load monthly mean discharge for this site."""
         return get_monthly_values(self.gage_id)
 
     @property
     def missing_dates_monthly_values(self) -> list:
         """Get missing dates for mean monthly value series."""
-        return check_missing_dates(self.get_monthly_values(), "monthly")
+        return check_missing_dates(self.monthly_values, "monthly")
 
     def get_regulation_summary(self, major_codes=["3", "9"]) -> List[str]:
         """Run regulation summary for gage."""
@@ -164,13 +169,23 @@ class Gage:
 
     def raise_warnings(self):
         """Create any high level data warnings."""
-        regulation_results = self.get_regulation_summary()
-        if regulation_results["minor"]:
-            for result in regulation_results["minor"]:
-                st.warning(result)
-        if regulation_results["major"]:
-            for result in regulation_results["major"]:
-                st.error(result)
+        if not self.ams_valid:
+            st.error("Gage has no annual maxima series data available")
+        if not self.dv_valid:
+            st.error("Gage has no daily value data available")
+        if not self.flow_stats_valid:
+            st.error("Gage has no flow statistics data available")
+        if not self.monthly_values_valid:
+            st.error("Gage has no monthly flow statistics data available")
+
+        if self.ams_valid:
+            regulation_results = self.get_regulation_summary()
+            if regulation_results["minor"]:
+                for result in regulation_results["minor"]:
+                    st.warning(result)
+            if regulation_results["major"]:
+                for result in regulation_results["major"]:
+                    st.error(result)
 
     @property
     def has_regional_skew(self) -> bool:
@@ -193,6 +208,35 @@ class Gage:
             )
         return val
 
+    @property
+    def ams_valid(self) -> bool:
+        """Whether this gage has AMS data."""
+        sub = self.data_catalog[self.data_catalog["data_type_cd"] == "pk"]
+        if len(sub) > 0:
+            if sub["count_nu"].values[0] > 0:
+                return True
+        return False
+
+    @property
+    def dv_valid(self) -> bool:
+        """Whether this gage has daily value data."""
+        sub = self.data_catalog[(self.data_catalog["data_type_cd"] == "dv") & (self.data_catalog["parm_cd"] == "00060")]
+        if len(sub) > 0:
+            if sub["count_nu"].values[0] > 0:
+                return True
+        return False
+
+    @property
+    def flow_stats_valid(self) -> bool:
+        """Whether this gage has flow statistics data."""
+        return self.flow_stats is not None
+
+    @property
+    def monthly_values_valid(self) -> bool:
+        """Whether this gage has flow statistics data."""
+        return self.monthly_values is not None
+
+
 
 @st.cache_data(max_entries=MAX_CACHE_ENTRIES)
 def get_ams(gage_id):
@@ -204,7 +248,7 @@ def get_ams(gage_id):
             df = nwis.get_record(service="peaks", sites=[gage_id], ssl_check=True)
     except NoSitesError:
         logging.warning(f"Peaks could not be found for gage id: {gage_id}")
-        return {"peaks": None, "lp3": None, "missing_years": None}
+        return pd.DataFrame()
 
     df["season"] = ((df.index.month % 12 + 3) // 3).map(
         {1: "Winter", 2: "Spring", 3: "Summer", 4: "Fall"}
@@ -246,6 +290,16 @@ def load_site_data(gage_number: str) -> dict:
         "alt_datum_cd": resp["alt_datum_cd"].iloc[0],
     }
 
+@st.cache_data(max_entries=MAX_CACHE_ENTRIES)
+def get_site_catalog(gage_number: str) -> dict:
+    """Query NWIS for site information"""
+    try:
+        df = nwis.what_sites(sites=gage_number, seriesCatalogOutput='true', ssl_check=True)[0]
+    except Exception as e:
+        print(str(e))
+        print(traceback.format_exc())
+    return df
+
 
 @st.cache_data(max_entries=MAX_CACHE_ENTRIES)
 def get_daily_values(gage_id, start_date, end_date):
@@ -263,7 +317,7 @@ def get_daily_values(gage_id, start_date, end_date):
 def get_monthly_values(gage_id):
     """Fetches mean monthly flow values for a given gage and assigns a datetime column based on the year and month."""
     try:
-        mv = nwis.get_stats(gage_id, statReportType="monthly", ssl_check=True)[0]
+        mv = nwis.get_stats(gage_id, statReportType="monthly", ssl_check=True, parameterCode = "00060")[0]
     except Exception:
         logging.warning(f"Monthly Values could not be found for gage_id: {gage_id}")
         return None
