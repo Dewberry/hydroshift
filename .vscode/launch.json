@@ -14,7 +14,13 @@
         "PYTHONPATH": "${workspaceFolder}"
       }
     },
-
+    {
+      "name": "Streamlit: Current File",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "streamlit",
+      "args": ["run", "${file}", "--server.port", "2000"]
+    },
     {
       "name": "Python:Streamlit",
       "type": "debugpy",

@@ -1,9 +1,12 @@
 from datetime import date
+import datetime
+import time
 
 import folium
 import streamlit as st
 from streamlit_folium import st_folium
 
+from hydroshift.errors import GageNotFoundException
 from hydroshift.utils.data_retrieval import Gage
 from hydroshift.utils.ffa import LP3Analysis
 from hydroshift.utils.jinja import write_template
@@ -54,14 +57,12 @@ def section_lp3(gage: Gage):
                 "Maximum Likelihood": "MLE",
             }[est_method]
         with opt_col_2:
-            st_skew = st.toggle("Use regional skew", value=False, disabled=not gage.has_regional_skew)
-            if st_skew:
-                use_map = True
-            else:
-                use_map = False
+            with st.container():
+                use_map = st.toggle("Use regional skew", value=False, disabled=not gage.has_regional_skew)
+                lp3 = LP3Analysis(gage.gage_id, gage.ams_vals, use_map, est_method, "")
+                st.badge(f"Using skew value of {round(lp3.parameters[2], 2)}", color="blue")
 
         # Analysis and display
-        lp3 = LP3Analysis(gage.gage_id, gage.ams_vals, use_map, est_method, "")
         if gage.missing_dates_ams is not None and len(gage.missing_dates_ams) > 0:
             st.warning(f"Missing {len(gage.missing_dates_ams)} LP3 records")
         st.plotly_chart(plot_lp3(lp3), use_container_width=True)
@@ -88,8 +89,10 @@ def section_daily_mean(gage: Gage):
     with input_col:
         st.write("")  # blank line for more space
         st.write("Daily Mean Input Dates")
-        start_date = st.date_input("Start Date", value=date(2024, 1, 1))
-        end_date = st.date_input("End Date", value=date(2024, 12, 31))
+        start_date = datetime.date(1900, 1, 1)
+        end_date = datetime.date(2100, 12, 31)
+        start_date = st.date_input("Start Date", value=date(2024, 1, 1), min_value=start_date, max_value=end_date)
+        end_date = st.date_input("End Date", value=date(2024, 12, 31), min_value=start_date, max_value=end_date)
 
     data = gage.get_daily_values(
         start_date.strftime("%Y-%m-%d"),
@@ -100,15 +103,20 @@ def section_daily_mean(gage: Gage):
         if data is not None:
             if missing_dates:
                 st.warning(f"Missing {len(missing_dates)} daily mean records")
-            st.plotly_chart(plot_daily_mean(data, gage.gage_id), use_container_width=True)
-            show_data = st.checkbox("Show Daily Mean Data Table")
-            if show_data:
-                st.dataframe(data)
+            if len(data) > 0:
+                st.plotly_chart(plot_daily_mean(data, gage.gage_id), use_container_width=True)
+                show_data = st.checkbox("Show Daily Mean Data Table")
+                if show_data:
+                    st.dataframe(data)
+            else:
+                st.warning("No data found for selected date range.")
+        else:
+            st.error(f"Could not find daily mean data for period {start_date} - {end_date}")
 
 
 def section_monthly_mean(gage: Gage):
     """Display the monthly mean discharge section."""
-    data = gage.get_monthly_values()
+    data = gage.monthly_values
     missing_dates = gage.missing_dates_monthly_values
     if data is not None and "mean_va" in data.columns:
         if missing_dates:
@@ -123,67 +131,63 @@ def section_monthly_mean(gage: Gage):
             st.dataframe(data)
 
 
+SECTION_DICT = {
+    "Daily Flow Statistics": section_flow_stats,
+    "Annual Peak Flow (AMS)": section_ams,
+    "Log-Pearson III (LP3) Analysis": section_lp3,
+    "AMS Seasonal Ranking": section_ams_seasonal,
+    "Daily Mean Streamflow": section_daily_mean,
+    "Monthly Mean Streamflow": section_monthly_mean
+}
+
+
+
 def summary():
     """Display summary plots for various timeseries associated with this gage."""
-    st.set_page_config(page_title="Gage Summary", layout="wide")
+    st.set_page_config(page_title="Gage Summary", layout="wide", initial_sidebar_state ="auto")
+
     # Sidebar for input
     with st.sidebar:
-        st.title("Settings")
-        st.session_state["gage_id"] = st.text_input("Enter USGS Gage Number:", st.session_state["gage_id"])
-        gage = Gage(st.session_state["gage_id"])
+        # Gage select
+        try:
+            st.session_state["gage_id"] = st.text_input("Enter USGS Gage Number:", st.session_state["gage_id"])
+            gage = Gage(st.session_state["gage_id"])
+        except GageNotFoundException:
+            gage = None
 
-        # Toggle plots
-        st.markdown("### Toggle Plots")
-        show_ams = st.checkbox("Annual Peak Flow (AMS)", value=True)
-        show_daily_stats = st.checkbox("Daily Flow Statistics", value=True)
-        show_lp3 = st.checkbox("Log-Pearson III (LP3) Analysis", value=True)
-        show_ams_seasonal = st.checkbox("AMS Seasonal Ranking", value=True)
-        show_daily_mean = st.checkbox("Daily Mean Streamflow", value=True)
-        show_monthly_mean = st.checkbox("Monthly Mean Streamflow", value=True)
-
-        # Data sources
+        # Footer
         st.divider()
         write_template("data_sources_side_bar.html")
 
-    if st.session_state["gage_id"]:
-        with st.spinner("Loading gage data..."):  # This is here to clear previous pages while data loads.
-            pass
-
-        col2, col3 = st.columns([6, 2], gap="large")
-
+    if gage is not None:
         if gage.latitude and gage.longitude:
-            with col3:  # Site map
-                st.subheader("Gage Location")
+            with st.container(border=True):
+                info_col, map_col = st.columns(2)
+                with map_col:  # Site map
+                    mini_map = folium.Map(
+                        location=[gage.latitude, gage.longitude],
+                        zoom_start=7,
+                        width=450,
+                        height=200,
+                    )
+                    folium.Marker(
+                        [gage.latitude, gage.longitude],
+                        popup=f"Gage {st.session_state['gage_id']}",
+                        icon=folium.Icon(color="green"),
+                    ).add_to(mini_map)
+                    st_folium(mini_map, use_container_width=True, height=250)
+                with info_col:
+                    # Display site metadata
+                    st.subheader("Site Information")
+                    write_template("site_summary.md", gage.site_data)
+                    st.link_button("Go to USGS", f'https://waterdata.usgs.gov/monitoring-location/USGS-{st.session_state["gage_id"]}/')
 
-                # Create Folium Map
-                mini_map = folium.Map(
-                    location=[gage.latitude, gage.longitude],
-                    zoom_start=7,
-                    width=200,
-                    height=200,
-                )
-                folium.Marker(
-                    [gage.latitude, gage.longitude],
-                    popup=f"Gage {st.session_state['gage_id']}",
-                    icon=folium.Icon(color="green"),
-                ).add_to(mini_map)
-                st_folium(mini_map, width=250, height=250)
-
-                # Display site metadata
-                st.subheader("Site Information")
-                write_template("site_summary.md", gage.site_data)
-
-        with col2:  # Center column for plots
+        with st.spinner():
             gage.raise_warnings()
-            if show_ams:
-                section_ams(gage)
-            if show_daily_stats:
-                section_flow_stats(gage)
-            if show_lp3:
-                section_lp3(gage)
-            if show_ams_seasonal:
-                section_ams_seasonal(gage)
-            if show_daily_mean:
-                section_daily_mean(gage)
-            if show_monthly_mean:
-                section_monthly_mean(gage)
+            if len(gage.available_plots) > 0:
+                tabs = st.tabs(gage.available_plots)
+                for t, i in zip(tabs, gage.available_plots):
+                    with t:
+                        SECTION_DICT[i](gage)
+    else:
+        st.error("USGS gage not found.")

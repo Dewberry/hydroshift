@@ -1,4 +1,7 @@
+from functools import cached_property
 import logging
+import time
+import traceback
 from typing import List
 
 import numpy as np
@@ -9,8 +12,10 @@ import streamlit as st
 from dataretrieval import NoSitesError, nwis
 from scipy.stats import genpareto
 
-from hydroshift.consts import REGULATION_MAP
+from hydroshift.consts import REGULATION_MAP, MAX_CACHE_ENTRIES
+from hydroshift.errors import GageNotFoundException
 from hydroshift.utils.common import group_consecutive_years
+logger = logging.getLogger(__name__)
 
 
 class Gage:
@@ -18,12 +23,22 @@ class Gage:
 
     def __init__(self, gage_id: str):
         """Construct class."""
-        self.gage_id = gage_id
+        self.gage_id = self.validate_id(gage_id)
         self.site_data = load_site_data(gage_id)
+        self.data_catalog = get_site_catalog(gage_id)
+
+    @staticmethod
+    def validate_id(idx: str):
+        if idx is None:
+            raise GageNotFoundException()
+        if not idx.isnumeric():
+            raise GageNotFoundException()
+        return idx
 
     @property
     @st.cache_data(
-        hash_funcs={"hydroshift.utils.data_retrieval.Gage": lambda x: hash(x.gage_id)}
+        hash_funcs={"hydroshift.utils.data_retrieval.Gage": lambda x: hash(x.gage_id)},
+        max_entries=MAX_CACHE_ENTRIES
     )
     def latitude(self) -> float:
         """Latitude of gage."""
@@ -31,7 +46,8 @@ class Gage:
 
     @property
     @st.cache_data(
-        hash_funcs={"hydroshift.utils.data_retrieval.Gage": lambda x: hash(x.gage_id)}
+        hash_funcs={"hydroshift.utils.data_retrieval.Gage": lambda x: hash(x.gage_id)},
+        max_entries=MAX_CACHE_ENTRIES
     )
     def longitude(self) -> float:
         """Longitude of gage."""
@@ -39,7 +55,8 @@ class Gage:
 
     @property
     @st.cache_data(
-        hash_funcs={"hydroshift.utils.data_retrieval.Gage": lambda x: hash(x.gage_id)}
+        hash_funcs={"hydroshift.utils.data_retrieval.Gage": lambda x: hash(x.gage_id)},
+        max_entries=MAX_CACHE_ENTRIES
     )
     def elevation(self) -> float:
         """Elevation of gage."""
@@ -47,18 +64,23 @@ class Gage:
 
     @property
     @st.cache_data(
-        hash_funcs={"hydroshift.utils.data_retrieval.Gage": lambda x: hash(x.gage_id)}
+        hash_funcs={"hydroshift.utils.data_retrieval.Gage": lambda x: hash(x.gage_id)},
+        max_entries=MAX_CACHE_ENTRIES
     )
     def mean_basin_elevation(self) -> float:
         """Average elevation of gage watershed."""
-        row = [
-            r for r in self.streamstats["characteristics"] if r["variableTypeID"] == 6
-        ]  # Get ELEV param
-        return row[0]["value"]
+        try:
+            row = [
+                r for r in self.streamstats["characteristics"] if r["variableTypeID"] == 6
+            ]  # Get ELEV param
+            return row[0]["value"]
+        except (KeyError, IndexError):
+            return None
 
     @property
     @st.cache_data(
-        hash_funcs={"hydroshift.utils.data_retrieval.Gage": lambda x: hash(x.gage_id)}
+        hash_funcs={"hydroshift.utils.data_retrieval.Gage": lambda x: hash(x.gage_id)},
+        max_entries=MAX_CACHE_ENTRIES
     )
     def streamstats(self) -> pd.DataFrame:
         """Load AMS for this site."""
@@ -69,7 +91,8 @@ class Gage:
 
     @property
     @st.cache_data(
-        hash_funcs={"hydroshift.utils.data_retrieval.Gage": lambda x: hash(x.gage_id)}
+        hash_funcs={"hydroshift.utils.data_retrieval.Gage": lambda x: hash(x.gage_id)},
+        max_entries=MAX_CACHE_ENTRIES
     )
     def ams(self) -> pd.DataFrame:
         """Load AMS for this site."""
@@ -87,14 +110,16 @@ class Gage:
 
     @property
     @st.cache_data(
-        hash_funcs={"hydroshift.utils.data_retrieval.Gage": lambda x: hash(x.gage_id)}
+        hash_funcs={"hydroshift.utils.data_retrieval.Gage": lambda x: hash(x.gage_id)},
+        max_entries=MAX_CACHE_ENTRIES
     )
     def flow_stats(self) -> pd.DataFrame:
         """Load flow statistics for this site."""
         return get_flow_stats(self.gage_id)
 
     @st.cache_data(
-        hash_funcs={"hydroshift.utils.data_retrieval.Gage": lambda x: hash(x.gage_id)}
+        hash_funcs={"hydroshift.utils.data_retrieval.Gage": lambda x: hash(x.gage_id)},
+        max_entries=MAX_CACHE_ENTRIES
     )
     def get_daily_values(self, start_date: str, end_date: str) -> pd.DataFrame:
         """Load daily mean discharge for this site."""
@@ -104,17 +129,19 @@ class Gage:
         """Get missing dates for mean daily value series."""
         return check_missing_dates(self.get_daily_values(start_date, end_date), "daily")
 
+    @property
     @st.cache_data(
-        hash_funcs={"hydroshift.utils.data_retrieval.Gage": lambda x: hash(x.gage_id)}
+        hash_funcs={"hydroshift.utils.data_retrieval.Gage": lambda x: hash(x.gage_id)},
+        max_entries=MAX_CACHE_ENTRIES
     )
-    def get_monthly_values(self) -> pd.DataFrame:
+    def monthly_values(self) -> pd.DataFrame:
         """Load monthly mean discharge for this site."""
         return get_monthly_values(self.gage_id)
 
     @property
     def missing_dates_monthly_values(self) -> list:
         """Get missing dates for mean monthly value series."""
-        return check_missing_dates(self.get_monthly_values(), "monthly")
+        return check_missing_dates(self.monthly_values, "monthly")
 
     def get_regulation_summary(self, major_codes=["3", "9"]) -> List[str]:
         """Run regulation summary for gage."""
@@ -155,13 +182,23 @@ class Gage:
 
     def raise_warnings(self):
         """Create any high level data warnings."""
-        regulation_results = self.get_regulation_summary()
-        if regulation_results["minor"]:
-            for result in regulation_results["minor"]:
-                st.warning(result)
-        if regulation_results["major"]:
-            for result in regulation_results["major"]:
-                st.error(result)
+        if not self.ams_valid:
+            st.error("Gage has no annual maxima series data available")
+        if not self.dv_valid:
+            st.error("Gage has no daily value data available")
+        if not self.flow_stats_valid:
+            st.error("Gage has no flow statistics data available")
+        if not self.monthly_values_valid:
+            st.error("Gage has no monthly flow statistics data available")
+
+        if self.ams_valid:
+            regulation_results = self.get_regulation_summary()
+            if regulation_results["minor"]:
+                for result in regulation_results["minor"]:
+                    st.warning(result)
+            if regulation_results["major"]:
+                for result in regulation_results["major"]:
+                    st.error(result)
 
     @property
     def has_regional_skew(self) -> bool:
@@ -179,13 +216,59 @@ class Gage:
         except (KeyError, IndexError):
             return None
         if val == 9999:  # California Eq. from USGS SIR 2010-5260 NL-ELEV eq
+            if self.mean_basin_elevation is None:
+                return None
             val = (0 - 0.62) + 1.3 * (
                 1 - np.exp(0 - ((self.mean_basin_elevation) / 6500) ** 2)
             )
         return val
 
+    @property
+    def ams_valid(self) -> bool:
+        """Whether this gage has AMS data."""
+        sub = self.data_catalog[self.data_catalog["data_type_cd"] == "pk"]
+        if len(sub) > 0:
+            if sub["count_nu"].values[0] > 0:
+                return True
+        return False
 
-@st.cache_data
+    @property
+    def dv_valid(self) -> bool:
+        """Whether this gage has daily value data."""
+        sub = self.data_catalog[(self.data_catalog["data_type_cd"] == "dv") & (self.data_catalog["parm_cd"] == "00060")]
+        if len(sub) > 0:
+            if sub["count_nu"].values[0] > 0:
+                return True
+        return False
+
+    @property
+    def flow_stats_valid(self) -> bool:
+        """Whether this gage has flow statistics data."""
+        if self.flow_stats is None:
+            return False
+        return True
+
+    @property
+    def monthly_values_valid(self) -> bool:
+        """Whether this gage has flow statistics data."""
+        return self.monthly_values is not None
+
+    @property
+    def available_plots(self) -> list[str]:
+        plots = []
+        if self.flow_stats_valid:
+            plots.append("Daily Flow Statistics")
+        if self.ams_valid:
+            plots.extend(["Annual Peak Flow (AMS)", "Log-Pearson III (LP3) Analysis", "AMS Seasonal Ranking"])
+        if self.dv_valid:
+            plots.append("Daily Mean Streamflow")
+        if self.monthly_values_valid:
+            plots.append("Monthly Mean Streamflow")
+        return plots
+
+
+
+@st.cache_data(max_entries=MAX_CACHE_ENTRIES)
 def get_ams(gage_id):
     """Fetches Annual Maximum Series (AMS) peak flow data for a given gage."""
     try:
@@ -194,8 +277,8 @@ def get_ams(gage_id):
         else:
             df = nwis.get_record(service="peaks", sites=[gage_id], ssl_check=True)
     except NoSitesError:
-        logging.warning(f"Peaks could not be found for gage id: {gage_id}")
-        return {"peaks": None, "lp3": None, "missing_years": None}
+        logger.debug(f"Peaks could not be found for gage id: {gage_id}")
+        return pd.DataFrame()
 
     df["season"] = ((df.index.month % 12 + 3) // 3).map(
         {1: "Winter", 2: "Spring", 3: "Summer", 4: "Fall"}
@@ -205,26 +288,25 @@ def get_ams(gage_id):
     return df
 
 
-@st.cache_data
+@st.cache_data(max_entries=MAX_CACHE_ENTRIES)
 def get_flow_stats(gage_id):
     """Fetches flow statistics for a given gage."""
     try:
         df = nwis.get_stats(sites=gage_id, parameterCd="00060", ssl_check=True)[0]
     except IndexError:
-        logging.warning(f"Flow stats could not be found for gage_id: {gage_id}")
+        logger.debug(f"Flow stats could not be found for gage_id: {gage_id}")
         return None
 
     return df
 
 
-@st.cache_data
+@st.cache_data(max_entries=MAX_CACHE_ENTRIES)
 def load_site_data(gage_number: str) -> dict:
     """Query NWIS for site information"""
     try:
         resp = nwis.get_record(sites=gage_number, service="site", ssl_check=True)
-
     except ValueError:
-        raise ValueError(f"Gage {gage_number} not found")
+        raise GageNotFoundException()
 
     return {
         "site_no": resp["site_no"].iloc[0],
@@ -237,35 +319,48 @@ def load_site_data(gage_number: str) -> dict:
         "alt_datum_cd": resp["alt_datum_cd"].iloc[0],
     }
 
+@st.cache_data(max_entries=MAX_CACHE_ENTRIES)
+def get_site_catalog(gage_number: str) -> dict:
+    """Query NWIS for site information"""
+    try:
+        df = nwis.what_sites(sites=gage_number, seriesCatalogOutput='true', ssl_check=True)[0]
+    except Exception as e:
+        logger.error("Error querying site: %s", e, exc_info=True)
+    return df
 
-@st.cache_data
+
+@st.cache_data(max_entries=MAX_CACHE_ENTRIES)
 def get_daily_values(gage_id, start_date, end_date):
     """Fetches mean daily flow values for a given gage."""
     try:
-        dv = nwis.get_dv(gage_id, start_date, end_date, ssl_check=True)[0]
+        dv = nwis.get_dv(gage_id, start_date, end_date, ssl_check=True, parameterCd ="00060")[0]
     except Exception:
-        logging.warning(f"Daily Values could not be found for gage_id: {gage_id}")
+        logger.debug(f"Daily Values could not be found for gage_id: {gage_id}")
         return None
 
     return dv
 
 
-@st.cache_data
+@st.cache_data(max_entries=MAX_CACHE_ENTRIES)
 def get_monthly_values(gage_id):
     """Fetches mean monthly flow values for a given gage and assigns a datetime column based on the year and month."""
     try:
-        mv = nwis.get_stats(gage_id, statReportType="monthly", ssl_check=True)[0]
+        mv = nwis.get_stats(gage_id, statReportType="monthly", ssl_check=True, parameterCd = "00060")[0]
     except Exception:
-        logging.warning(f"Monthly Values could not be found for gage_id: {gage_id}")
+        logger.debug(f"Monthly Values could not be found for gage_id: {gage_id}")
         return None
 
     mv = mv.rename(columns={"year_nu": "year", "month_nu": "month"})
 
     mv["date"] = pd.to_datetime(mv[["year", "month"]].assign(day=1))
 
-    mv = mv.sort_values("date")
+    mv = mv.sort_values("date").set_index("date")
 
-    return mv
+    full_range = pd.date_range(mv.index.min(), mv.index.max(), freq="MS")
+
+    mv = mv.reindex(full_range)
+
+    return mv.reset_index(names="date")
 
 
 def check_missing_dates(df, freq):

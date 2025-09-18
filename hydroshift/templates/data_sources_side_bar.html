@@ -1,10 +1,69 @@
-<div style="
-    text-align: center;
-    font-size: 0.85rem;
-    color: rgba(60, 60, 60, 0.6);
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    padding: 0px 0;
-">
-    Data: <a href="{{ NWIS_URL }}" target="_blank" style="color: #6c7880; text-decoration: none;">USGS NWIS</a> and
-    <a href="{{ PEAKFQ_URL }}" target="_blank" style="color: #6c7880; text-decoration: none;">USGS PEAKFQ</a>
+<style>
+.footer {
+  font-size: 0.8rem;
+  color: rgba(60, 60, 60, 0.6);
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  padding: 4px 0;
+}
+
+.footer-row {
+  display: flex;
+  justify-content: center;   /* centers the child divs horizontally */
+  align-items: center;
+  margin: 2px 0px 20px 0px;
+}
+
+.footer-icons {
+  display: flex;
+  gap: 20px;
+  justify-content: center;   /* center horizontally */
+  align-items: center;       /* center vertically */
+}
+
+.footer-icons a {
+  display: inline-flex;
+  align-items: center;
+  height: 16px;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.footer-icons a:hover {
+  transform: scale(1.15);
+  opacity: 0.8;
+}
+
+.footer a {
+  color: #6c7880;
+  text-decoration: none;
+  transition: color 0.2s ease, text-decoration 0.2s ease;
+}
+
+.footer a:hover {
+  color: #333;
+  text-decoration: underline;
+}
+</style>
+
+<div class="footer">
+  <div class="footer-row">
+    <div class="footer-icons">
+      <a href="{{ GITHUB_URL }}" target="_blank" title="GitHub Repository">
+        {{ GITHUB_SVG | safe }}
+      </a>
+      <a href="mailto:{{ ADMIN_EMAIL }}" target="_blank" title="Report a bug">
+        {{ MAIL_SVG | safe }}
+      </a>
+      <a href="{{ DEWBERRY_URL }}" target="_blank" title="Dewberry">
+        {{ DEWBERRY_SVG | safe }}
+      </a>
+    </div>
+  </div>
+
+  <div class="footer-row">
+    <div>
+      Data:
+      <a href="{{ NWIS_URL }}" target="_blank">USGS NWIS</a> and
+      <a href="{{ PEAKFQ_URL }}" target="_blank">USGS PEAKFQ</a>
+    </div>
+  </div>
 </div>

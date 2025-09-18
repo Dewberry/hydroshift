@@ -6,6 +6,7 @@ from plotly.graph_objects import Figure
 from plotly.subplots import make_subplots
 from scipy.stats import norm
 
+from hydroshift.consts import MAX_CACHE_ENTRIES
 from hydroshift.utils.common import classify_regulation
 from hydroshift.utils.ffa import LP3Analysis
 
@@ -88,6 +89,9 @@ def plot_flow_stats(stats_df, gage_id):
     """Plot Flow Statistics using Plotly with month-abbreviation x-axis labels."""
     # Ensure data is sorted
     # Create a datetime column
+    p_cols = ['p05_va', 'p10_va', 'p20_va', 'p25_va', 'p50_va', 'p75_va', 'p80_va', 'p90_va', 'p95_va']
+    stats_df[p_cols] = stats_df[p_cols].ffill()
+    stats_df[p_cols] = stats_df[p_cols].fillna(0)
     stats_df["date"] = pd.to_datetime(
         {
             "year": 2000,  # dummy leap year to support Feb 29
@@ -101,6 +105,7 @@ def plot_flow_stats(stats_df, gage_id):
     stats_df["day_of_year"] = stats_df["month_nu"] * 30 + stats_df["day_nu"]
     fig = go.Figure()
     # Percentile bands
+
     fig.add_trace(
         go.Scatter(
             x=stats_df["date"],
@@ -370,7 +375,7 @@ def plot_cpm_heatmap(pval_df: pd.DataFrame):
     return fig
 
 
-@st.cache_data
+@st.cache_data(max_entries=MAX_CACHE_ENTRIES)
 def combo_cpm(ams_df: pd.DataFrame, pval_df: pd.DataFrame, cps: dict = {}) -> Figure:
     """Plot a change point model with peak flows and statistical analysis."""
     # Create subplots
@@ -442,7 +447,7 @@ def combo_cpm(ams_df: pd.DataFrame, pval_df: pd.DataFrame, cps: dict = {}) -> Fi
 
     # Update layout
     fig.update_layout(
-        coloraxis=dict(colorscale=custom_color_scale, cmin=0.05, cmax=0.001),
+        coloraxis=dict(colorscale=custom_color_scale, cmax=0.05, cmin=0.001),
         coloraxis_colorbar=dict(
             orientation="h",
             yanchor="bottom",

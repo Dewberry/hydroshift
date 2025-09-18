@@ -19,7 +19,7 @@ def check_for_consts(template_name: str, context: dict) -> dict:
     return context
 
 
-@st.cache_data
+@st.cache_data(max_entries=consts.MAX_CACHE_ENTRIES)
 def render_template(template_name: str, context: dict = {}) -> str:
     """Load a template from the environment and format it."""
     context = check_for_consts(template_name, context)
