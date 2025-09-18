@@ -1,6 +1,7 @@
 """Python interface to initialize R server."""
 
 import atexit
+import logging
 import subprocess
 import time
 
@@ -9,6 +10,8 @@ import requests
 
 from hydroshift.consts import R_SERVER_PORT
 import streamlit as st
+
+logger = logging.getLogger(__name__)
 
 def server_running(port: str) -> bool:
     """Check if server is running."""
@@ -24,7 +27,7 @@ def server_running(port: str) -> bool:
 
 def stop_server(pid: int):
     """Kill server subprocess."""
-    print("Stopping server")
+    logger.info("Stopping server")
     psutil.Process(pid).terminate()
 
 @st.cache_resource
@@ -47,8 +50,8 @@ def start_server():
             break
         time.sleep(0.1)
         if _iter % 10 == 0:
-            print("waiting for server to start")  # TODO: convert this to log.
+            logger.info("waiting for server to start")
             _iter += 1
     else:
         raise RuntimeError("Server failed to start after 60 seconds")
-    print("Server started")
+    logger.info("Server started")

@@ -15,6 +15,7 @@ from scipy.stats import genpareto
 from hydroshift.consts import REGULATION_MAP, MAX_CACHE_ENTRIES
 from hydroshift.errors import GageNotFoundException
 from hydroshift.utils.common import group_consecutive_years
+logger = logging.getLogger(__name__)
 
 
 class Gage:
@@ -276,7 +277,7 @@ def get_ams(gage_id):
         else:
             df = nwis.get_record(service="peaks", sites=[gage_id], ssl_check=True)
     except NoSitesError:
-        logging.warning(f"Peaks could not be found for gage id: {gage_id}")
+        logger.debug(f"Peaks could not be found for gage id: {gage_id}")
         return pd.DataFrame()
 
     df["season"] = ((df.index.month % 12 + 3) // 3).map(
@@ -293,7 +294,7 @@ def get_flow_stats(gage_id):
     try:
         df = nwis.get_stats(sites=gage_id, parameterCd="00060", ssl_check=True)[0]
     except IndexError:
-        logging.warning(f"Flow stats could not be found for gage_id: {gage_id}")
+        logger.debug(f"Flow stats could not be found for gage_id: {gage_id}")
         return None
 
     return df
@@ -324,8 +325,7 @@ def get_site_catalog(gage_number: str) -> dict:
     try:
         df = nwis.what_sites(sites=gage_number, seriesCatalogOutput='true', ssl_check=True)[0]
     except Exception as e:
-        print(str(e))
-        print(traceback.format_exc())
+        logger.error("Error querying site: %s", e, exc_info=True)
     return df
 
 
@@ -335,7 +335,7 @@ def get_daily_values(gage_id, start_date, end_date):
     try:
         dv = nwis.get_dv(gage_id, start_date, end_date, ssl_check=True, parameterCd ="00060")[0]
     except Exception:
-        logging.warning(f"Daily Values could not be found for gage_id: {gage_id}")
+        logger.debug(f"Daily Values could not be found for gage_id: {gage_id}")
         return None
 
     return dv
@@ -347,7 +347,7 @@ def get_monthly_values(gage_id):
     try:
         mv = nwis.get_stats(gage_id, statReportType="monthly", ssl_check=True, parameterCd = "00060")[0]
     except Exception:
-        logging.warning(f"Monthly Values could not be found for gage_id: {gage_id}")
+        logger.debug(f"Monthly Values could not be found for gage_id: {gage_id}")
         return None
 
     mv = mv.rename(columns={"year_nu": "year", "month_nu": "month"})
