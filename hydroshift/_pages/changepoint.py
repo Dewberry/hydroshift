@@ -21,6 +21,7 @@ from hydroshift.consts import (
     METRICS,
     VALID_ARL0S,
 )
+from hydroshift.errors import GageNotFoundException
 from hydroshift.utils.changepoint import cp_pvalue_batch, cpm_process_stream
 from hydroshift.utils.common import num_2_word
 from hydroshift.utils.data_retrieval import Gage
@@ -171,7 +172,7 @@ class ChangePointAnalysis:
             evidence = "moderate"
         elif self.pval_df.isna().all().all():
             evidence = "no"
-        elif min_p < 1:
+        elif min_p <= 1:
             evidence = "minor"
         groups, _ = self.get_change_windows()
 
@@ -268,33 +269,27 @@ class ChangePointAnalysis:
 
         # Validate
         if data is None:
-            st.session_state.valid_data = False
-            st.session_state.data_comment = "Unable to retrieve data."
+            return False,  "Unable to retrieve data."
         elif len(data) < st.session_state.burn_in:
             st.session_state.valid_data = False
-            st.session_state.data_comment = "Not enough peaks available for analysis. {} peaks found, but burn-in length was {}".format(
-                len(data["peaks"]), st.session_state.burn_in
-            )
+            return False, "Not enough peaks available for analysis. {} peaks found, but burn-in length was {}".format(len(data["peak_va"]), st.session_state.burn_in)
         else:
-            st.session_state.valid_data = True
+            return True, None
 
 
 def define_variables():
     """Set up page state and get default variables."""
     # Ensure gage valid
-    if st.session_state.gage_id is None:
-        st.session_state.valid_data = False
-        st.session_state.data_comment = "Invalid USGS gage provided."
-        return
-    if not st.session_state.gage_id.isnumeric():
-        st.session_state.valid_data = False
-        st.session_state.data_comment = "Invalid USGS gage provided."
-        return
-
+    if st.session_state["gage"] is None:
+        return False, "USGS gage not found"
+    if not Gage(st.session_state["gage_id"]).ams_valid:
+        return False, "USGS gage has invalid AMS data."
     # Instantiate analysis class and get data
     if "changepoint" not in st.session_state:
         st.session_state.changepoint = ChangePointAnalysis(st.session_state.gage)
-    st.session_state.changepoint.validate_data()
+    elif st.session_state.changepoint.gage.gage_id != st.session_state.gage_id:
+        st.session_state.changepoint = ChangePointAnalysis(st.session_state.gage)
+    return st.session_state.changepoint.validate_data()
 
 
 def refresh_data_editor():
@@ -306,12 +301,16 @@ def make_sidebar():
     """User control for analysis."""
     with st.sidebar:
         st.title("Settings")
-        st.session_state["gage_id"] = st.text_input(
-            "Enter USGS Gage Number:",
-            st.session_state["gage_id"],
-            on_change=refresh_data_editor,
-        )
-        st.session_state.gage = Gage(st.session_state["gage_id"])
+        try:
+            st.session_state["gage_id"] = st.text_input(
+                "Enter USGS Gage Number:",
+                st.session_state["gage_id"],
+                on_change=refresh_data_editor,
+            )
+            st.session_state.gage = Gage(st.session_state["gage_id"])
+        except GageNotFoundException:
+            st.session_state.gage = None
+            return
         with st.form("changepoint_params"):
             st.select_slider(
                 "False Positive Rate (1 in #)",
@@ -351,7 +350,6 @@ def make_sidebar():
 
         st.divider()
         write_template("data_sources_side_bar.html")
-
 
 def run_analysis():
     """Run the change point model analysis."""
@@ -416,8 +414,7 @@ def ffa_analysis(data: pd.DataFrame, regimes: list):
 
 def make_body():
     """Assemble main app body."""
-    left_col, right_col = st.columns([2, 1])  # Formatting
-    with left_col:
+    with st.container(width=850):
         cpa: ChangePointAnalysis = st.session_state.changepoint
         st.title(cpa.title)
         warnings()
@@ -433,8 +430,8 @@ def make_body():
             st.header("Changepoint detection results")
             st.markdown(cpa.results_text)
             if len(cpa.cp_dict) > 1:
-                st.table(cpa.cp_df)
                 st.markdown(CP_T1_CAPTION)
+                st.table(cpa.cp_df)
 
         st.header("Modified flood frequency analysis")
         if len(st.session_state[st.session_state.data_editor_key]["added_rows"]) > 0:
@@ -485,8 +482,8 @@ def changepoint():
     """Outline the page."""
     st.set_page_config(page_title="USGS Gage Changepoint Analysis", layout="wide")
     make_sidebar()
-    define_variables()
-    if st.session_state.valid_data:
+    valid, msg = define_variables()
+    if valid:
         try:
             run_analysis()
         except Exception as e:
@@ -495,4 +492,4 @@ def changepoint():
         else:
             make_body()
     else:
-        st.error(st.session_state.data_comment)
+        st.error(msg)
