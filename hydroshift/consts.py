@@ -40,7 +40,7 @@ METRICS = ["Cramer-von-Mises", "Kolmogorov-Smirnov", "Lepage", "Mann-Whitney", "
 NWIS_URL = "https://waterdata.usgs.gov/nwis?"
 PEAKFQ_URL = "https://www.usgs.gov/tools/peakfq"
 DEWBERRY_URL = "https://www.dewberry.com/"
-GITHUB_URL = "https://github.com/Dewberry/non-stationarity-tool"
+GITHUB_URL = "https://github.com/Dewberry/hydroshift"
 ADMIN_EMAIL = "klawson@dewberry.com"
 
 ### Text snippets ###
