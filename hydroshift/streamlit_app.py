@@ -1,9 +1,16 @@
+import logging
+import sys
 import time
 import streamlit as st
 from session import init_session_state
 from PIL import Image
 
 from hydroshift._pages import changepoint, homepage, summary, reset_homepage
+
+from hydroshift.logging import  setup_logging
+
+setup_logging()
+logger = logging.getLogger(__name__)
 
 
 def navigator():
