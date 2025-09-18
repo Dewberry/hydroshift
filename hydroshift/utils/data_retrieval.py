@@ -13,6 +13,7 @@ from dataretrieval import NoSitesError, nwis
 from scipy.stats import genpareto
 
 from hydroshift.consts import REGULATION_MAP, MAX_CACHE_ENTRIES
+from hydroshift.errors import GageNotFoundException
 from hydroshift.utils.common import group_consecutive_years
 
 
@@ -21,9 +22,17 @@ class Gage:
 
     def __init__(self, gage_id: str):
         """Construct class."""
-        self.gage_id = gage_id
+        self.gage_id = self.validate_id(gage_id)
         self.site_data = load_site_data(gage_id)
         self.data_catalog = get_site_catalog(gage_id)
+
+    @staticmethod
+    def validate_id(idx: str):
+        if idx is None:
+            raise GageNotFoundException()
+        if not idx.isnumeric():
+            raise GageNotFoundException()
+        return idx
 
     @property
     @st.cache_data(
@@ -59,10 +68,13 @@ class Gage:
     )
     def mean_basin_elevation(self) -> float:
         """Average elevation of gage watershed."""
-        row = [
-            r for r in self.streamstats["characteristics"] if r["variableTypeID"] == 6
-        ]  # Get ELEV param
-        return row[0]["value"]
+        try:
+            row = [
+                r for r in self.streamstats["characteristics"] if r["variableTypeID"] == 6
+            ]  # Get ELEV param
+            return row[0]["value"]
+        except (KeyError, IndexError):
+            return None
 
     @property
     @st.cache_data(
@@ -203,6 +215,8 @@ class Gage:
         except (KeyError, IndexError):
             return None
         if val == 9999:  # California Eq. from USGS SIR 2010-5260 NL-ELEV eq
+            if self.mean_basin_elevation is None:
+                return None
             val = (0 - 0.62) + 1.3 * (
                 1 - np.exp(0 - ((self.mean_basin_elevation) / 6500) ** 2)
             )
@@ -229,12 +243,27 @@ class Gage:
     @property
     def flow_stats_valid(self) -> bool:
         """Whether this gage has flow statistics data."""
-        return self.flow_stats is not None
+        if self.flow_stats is None:
+            return False
+        return True
 
     @property
     def monthly_values_valid(self) -> bool:
         """Whether this gage has flow statistics data."""
         return self.monthly_values is not None
+
+    @property
+    def available_plots(self) -> list[str]:
+        plots = []
+        if self.flow_stats_valid:
+            plots.append("Daily Flow Statistics")
+        if self.ams_valid:
+            plots.extend(["Annual Peak Flow (AMS)", "Log-Pearson III (LP3) Analysis", "AMS Seasonal Ranking"])
+        if self.dv_valid:
+            plots.append("Daily Mean Streamflow")
+        if self.monthly_values_valid:
+            plots.append("Monthly Mean Streamflow")
+        return plots
 
 
 
@@ -275,9 +304,8 @@ def load_site_data(gage_number: str) -> dict:
     """Query NWIS for site information"""
     try:
         resp = nwis.get_record(sites=gage_number, service="site", ssl_check=True)
-
     except ValueError:
-        raise ValueError(f"Gage {gage_number} not found")
+        raise GageNotFoundException()
 
     return {
         "site_no": resp["site_no"].iloc[0],
@@ -305,7 +333,7 @@ def get_site_catalog(gage_number: str) -> dict:
 def get_daily_values(gage_id, start_date, end_date):
     """Fetches mean daily flow values for a given gage."""
     try:
-        dv = nwis.get_dv(gage_id, start_date, end_date, ssl_check=True)[0]
+        dv = nwis.get_dv(gage_id, start_date, end_date, ssl_check=True, parameterCd ="00060")[0]
     except Exception:
         logging.warning(f"Daily Values could not be found for gage_id: {gage_id}")
         return None
@@ -317,7 +345,7 @@ def get_daily_values(gage_id, start_date, end_date):
 def get_monthly_values(gage_id):
     """Fetches mean monthly flow values for a given gage and assigns a datetime column based on the year and month."""
     try:
-        mv = nwis.get_stats(gage_id, statReportType="monthly", ssl_check=True, parameterCode = "00060")[0]
+        mv = nwis.get_stats(gage_id, statReportType="monthly", ssl_check=True, parameterCd = "00060")[0]
     except Exception:
         logging.warning(f"Monthly Values could not be found for gage_id: {gage_id}")
         return None
@@ -326,9 +354,13 @@ def get_monthly_values(gage_id):
 
     mv["date"] = pd.to_datetime(mv[["year", "month"]].assign(day=1))
 
-    mv = mv.sort_values("date")
+    mv = mv.sort_values("date").set_index("date")
 
-    return mv
+    full_range = pd.date_range(mv.index.min(), mv.index.max(), freq="MS")
+
+    mv = mv.reindex(full_range)
+
+    return mv.reset_index(names="date")
 
 
 def check_missing_dates(df, freq):

@@ -2,13 +2,12 @@ import streamlit as st
 from hydroshift._pages import summary
 from hydroshift.consts import DEFAULT_GAGE
 from hydroshift.utils.jinja import write_template
-from PIL import Image
 
 
 def homepage():
     """Landing page for app."""
-    st.session_state["gage_id"] = None
-    st.set_page_config(layout="centered")
+    # st.session_state["gage_id"] = None
+    st.set_page_config(layout="centered", initial_sidebar_state ="collapsed")
 
     st.markdown(
         """
@@ -70,3 +69,7 @@ def homepage():
         st.switch_page(st.Page(summary, title="Gage Summary"))
 
     write_template("footer.html")
+
+def reset_homepage():
+    st.session_state["gage_id"] = None
+    st.rerun()
