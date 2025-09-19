@@ -1,4 +1,5 @@
 """Shared variables."""
+
 # Performance
 MAX_CACHE_ENTRIES = 25
 
@@ -60,6 +61,7 @@ REGULATION_MAP = {
     "C": "All or part of the record affected by Urbanization, Mining, Agricultural changes, Channelization, or other",
 }
 
+
 ### IMAGES ###
 def svg2text(path: str) -> str:
     with open(path, "r") as f:
@@ -67,6 +69,8 @@ def svg2text(path: str) -> str:
     if svg.startswith("<?xml"):
         svg = svg.split("?>", 1)[1]
     return svg.strip()
+
+
 GITHUB_SVG = svg2text("hydroshift/images/github_logo.svg")
 DEWBERRY_SVG = svg2text("hydroshift/images/dewberry_logo.svg")
 MAIL_SVG = svg2text("hydroshift/images/mail_logo.svg")

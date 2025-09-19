@@ -89,7 +89,7 @@ def plot_flow_stats(stats_df, gage_id):
     """Plot Flow Statistics using Plotly with month-abbreviation x-axis labels."""
     # Ensure data is sorted
     # Create a datetime column
-    p_cols = ['p05_va', 'p10_va', 'p20_va', 'p25_va', 'p50_va', 'p75_va', 'p80_va', 'p90_va', 'p95_va']
+    p_cols = ["p05_va", "p10_va", "p20_va", "p25_va", "p50_va", "p75_va", "p80_va", "p90_va", "p95_va"]
     stats_df[p_cols] = stats_df[p_cols].ffill()
     stats_df[p_cols] = stats_df[p_cols].fillna(0)
     stats_df["date"] = pd.to_datetime(
@@ -229,9 +229,7 @@ def plot_lp3(data: LP3Analysis | list[LP3Analysis]):
         )
 
     # Formatting
-    return_periods = [
-        int(i) if i.is_integer() else round(i, 1) for i in i.return_periods
-    ]
+    return_periods = [int(i) if i.is_integer() else round(i, 1) for i in i.return_periods]
     if i.use_map_skew:
         skew_txt = ""
     else:

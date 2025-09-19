@@ -27,3 +27,14 @@ dependencies = [
 [tool.setuptools.packages.find]
 include = ["hydroshift*"]
 namespaces = false
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+select = ["F401", "I001"]  # unused imports + import sorting
+
+[dependency-groups]
+dev = [
+    "ruff>=0.13.1",
+]
