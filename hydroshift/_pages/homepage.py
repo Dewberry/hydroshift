@@ -3,22 +3,8 @@ from hydroshift._pages import summary
 from hydroshift.consts import DEFAULT_GAGE
 from hydroshift.utils.jinja import write_template
 
-
-def homepage():
-    """Landing page for app."""
-    # st.session_state["gage_id"] = None
-    st.set_page_config(layout="centered", initial_sidebar_state ="collapsed")
-
-    st.markdown(
-        """
+PAGE_CSS = """
         <style>
-        .stApp {
-        background: linear-gradient(
-            #f5f5f5 0%,
-            #f5f5f5 45%,
-            #b3c7e8 100%
-        );
-        }
         .stAppDeployButton {display:none;}
         .stAppHeader {display:none;}
         .block-container {
@@ -38,12 +24,51 @@ def homepage():
             box-shadow: 0px 4px 12px rgba(0,0,0,0.25);
             color: black;
         }
+        .stApp {
+            background: linear-gradient(
+                #f5f5f5 0%,
+                #f5f5f5 45%,
+                #b3c7e8 100%
+            ) !important;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .stApp {
+                background: linear-gradient(
+                    #05051c 0%,
+                    #05051c 45%,
+                    #17428a 100%
+                ) !important;
+            }
+            a {
+                color: #d4d4d4 !important;
+                text-decoration: none;
+            }
+            a:hover {
+                color: #808080 !important;
+                text-decoration: underline;
+            }
+            p {
+                color: #d4d4d4 !important;
+            }
+            div.stButton > button {
+                color: #000000;
+            }
+        }
+
+
         </style>
-        """,
+        """
+
+def homepage():
+    """Landing page for app."""
+    st.set_page_config(layout="centered", initial_sidebar_state ="collapsed")
+
+    st.markdown(
+        PAGE_CSS,
         unsafe_allow_html=True,
     )
 
-    # --- Centered content ---
     with st.container(horizontal_alignment ="center"):
         st.title("HydroShift")
 
