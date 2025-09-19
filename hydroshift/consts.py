@@ -42,6 +42,7 @@ NWIS_URL = "https://waterdata.usgs.gov/nwis?"
 PEAKFQ_URL = "https://www.usgs.gov/tools/peakfq"
 DEWBERRY_URL = "https://www.dewberry.com/"
 GITHUB_URL = "https://github.com/Dewberry/hydroshift"
+BUG_URL = "https://github.com/Dewberry/hydroshift/issues"
 ADMIN_EMAIL = "klawson@dewberry.com"
 
 ### Text snippets ###
@@ -73,4 +74,5 @@ def svg2text(path: str) -> str:
 
 GITHUB_SVG = svg2text("hydroshift/images/github_logo.svg")
 DEWBERRY_SVG = svg2text("hydroshift/images/dewberry_logo.svg")
+BUG_SVG = svg2text("hydroshift/images/bug.svg")
 MAIL_SVG = svg2text("hydroshift/images/mail_logo.svg")
