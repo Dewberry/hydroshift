@@ -57,9 +57,9 @@ def section_lp3(gage: Gage):
             }[est_method]
         with opt_col_2:
             with st.container():
-                use_map = st.toggle("Use regional skew", value=False, disabled=not gage.has_regional_skew)
-                lp3 = LP3Analysis(gage.gage_id, gage.ams_vals, use_map, est_method, "")
-                st.badge(f"Using skew value of {round(lp3.parameters[2], 2)}", color="blue")
+                skew_mode = st.radio("Skew Source", options=["Station Skew", "Regional Skew", "Weighted Skew"], horizontal=True, disabled=not gage.has_regional_skew)
+                lp3 = LP3Analysis(gage.gage_id, gage.ams_vals, skew_mode, est_method, "")
+                st.badge(f"Using skew value of {str(round(lp3.parameters[2], 2))}", color="blue")
 
         # Analysis and display
         if gage.missing_dates_ams is not None and len(gage.missing_dates_ams) > 0:

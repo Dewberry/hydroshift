@@ -1,5 +1,6 @@
 """A tool to identify changepoints in hydrologic timeseries."""
 
+from pydoc import doc
 import traceback
 import uuid
 from collections import defaultdict
@@ -10,6 +11,7 @@ import pandas as pd
 import streamlit as st
 from docx import Document
 from docx.shared import Inches
+from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
 from plotly.graph_objects import Figure
 
 from hydroshift.consts import (
@@ -195,6 +197,12 @@ class ChangePointAnalysis:
     def word_data(self) -> BytesIO:
         """Export text as MS word."""
         document = Document()
+        s = document.sections[0]
+        s.header_distance = Inches(0.2)
+        p = s.header.add_paragraph()
+        p.alignment = WD_PARAGRAPH_ALIGNMENT.RIGHT
+        r = p.add_run()
+        r.add_picture('hydroshift/images/dewberry_full_logo.jpg', height=Inches(0.3))
         document.add_heading(self.title, level=1)
         document.add_heading("Summary", level=2)
         self.add_markdown_to_doc(document, self.summary_text)

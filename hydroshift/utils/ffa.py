@@ -15,7 +15,7 @@ class LP3Analysis:
 
     gage_id: str
     peaks: list
-    use_map_skew: bool = False
+    skew_mode: str = "Station Skew"
     est_method: str = "MLE"
     label: str = ""
     return_periods: List[str] = field(default_factory=lambda: [1.1, 2, 5, 10, 25, 50, 100, 500])
@@ -41,8 +41,10 @@ class LP3Analysis:
         elif self.est_method == "LMOM":
             mean_log, std_log, l3 = l_moments(self.log_peaks)
             skew_log = l3 / (std_log * 0.7797)  # pseudo-stdev
-        if self.use_map_skew:
+        if self.skew_mode == "Weighted Skew":
             skew_log = self.weighted_skew
+        elif self.skew_mode == "Regional Skew":
+            skew_log = self.map_skew
         return mean_log, std_log, skew_log
 
     @property

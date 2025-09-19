@@ -230,10 +230,7 @@ def plot_lp3(data: LP3Analysis | list[LP3Analysis]):
 
     # Formatting
     return_periods = [int(i) if i.is_integer() else round(i, 1) for i in i.return_periods]
-    if i.use_map_skew:
-        skew_txt = ""
-    else:
-        skew_txt = " (No Regional Skew)"
+    skew_txt = f" ({i.skew_mode})"
     fig.update_layout(
         title=f"{i.gage_id} | Log-Pearson Type III Estimates{skew_txt}",
         xaxis=dict(
