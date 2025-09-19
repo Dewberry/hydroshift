@@ -1,8 +1,8 @@
 # logging_config.py
 import logging
 import logging.handlers
-from pathlib import Path
 import sys
+from pathlib import Path
 
 
 def handle_uncaught(exc_type, exc_value, exc_traceback):
@@ -18,7 +18,7 @@ def setup_logging(log_dir: str = "logs", log_level: int = logging.INFO, log_file
     log_path = Path(log_dir) / log_file
 
     # Establish format
-    log_format = ("%(asctime)s | %(levelname)-8s | %(name)s.%(funcName)s:%(lineno)d | %(message)s")
+    log_format = "%(asctime)s | %(levelname)-8s | %(name)s.%(funcName)s:%(lineno)d | %(message)s"
     formatter = logging.Formatter(log_format, "%Y-%m-%d %H:%M:%S")
 
     # Establish global settings

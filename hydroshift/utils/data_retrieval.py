@@ -1,7 +1,4 @@
-from functools import cached_property
 import logging
-import time
-import traceback
 from typing import List
 
 import numpy as np
@@ -12,9 +9,10 @@ import streamlit as st
 from dataretrieval import NoSitesError, nwis
 from scipy.stats import genpareto
 
-from hydroshift.consts import REGULATION_MAP, MAX_CACHE_ENTRIES
+from hydroshift.consts import MAX_CACHE_ENTRIES, REGULATION_MAP
 from hydroshift.errors import GageNotFoundException
 from hydroshift.utils.common import group_consecutive_years
+
 logger = logging.getLogger(__name__)
 
 
@@ -37,8 +35,7 @@ class Gage:
 
     @property
     @st.cache_data(
-        hash_funcs={"hydroshift.utils.data_retrieval.Gage": lambda x: hash(x.gage_id)},
-        max_entries=MAX_CACHE_ENTRIES
+        hash_funcs={"hydroshift.utils.data_retrieval.Gage": lambda x: hash(x.gage_id)}, max_entries=MAX_CACHE_ENTRIES
     )
     def latitude(self) -> float:
         """Latitude of gage."""
@@ -46,8 +43,7 @@ class Gage:
 
     @property
     @st.cache_data(
-        hash_funcs={"hydroshift.utils.data_retrieval.Gage": lambda x: hash(x.gage_id)},
-        max_entries=MAX_CACHE_ENTRIES
+        hash_funcs={"hydroshift.utils.data_retrieval.Gage": lambda x: hash(x.gage_id)}, max_entries=MAX_CACHE_ENTRIES
     )
     def longitude(self) -> float:
         """Longitude of gage."""
@@ -55,8 +51,7 @@ class Gage:
 
     @property
     @st.cache_data(
-        hash_funcs={"hydroshift.utils.data_retrieval.Gage": lambda x: hash(x.gage_id)},
-        max_entries=MAX_CACHE_ENTRIES
+        hash_funcs={"hydroshift.utils.data_retrieval.Gage": lambda x: hash(x.gage_id)}, max_entries=MAX_CACHE_ENTRIES
     )
     def elevation(self) -> float:
         """Elevation of gage."""
@@ -64,35 +59,28 @@ class Gage:
 
     @property
     @st.cache_data(
-        hash_funcs={"hydroshift.utils.data_retrieval.Gage": lambda x: hash(x.gage_id)},
-        max_entries=MAX_CACHE_ENTRIES
+        hash_funcs={"hydroshift.utils.data_retrieval.Gage": lambda x: hash(x.gage_id)}, max_entries=MAX_CACHE_ENTRIES
     )
     def mean_basin_elevation(self) -> float:
         """Average elevation of gage watershed."""
         try:
-            row = [
-                r for r in self.streamstats["characteristics"] if r["variableTypeID"] == 6
-            ]  # Get ELEV param
+            row = [r for r in self.streamstats["characteristics"] if r["variableTypeID"] == 6]  # Get ELEV param
             return row[0]["value"]
         except (KeyError, IndexError):
             return None
 
     @property
     @st.cache_data(
-        hash_funcs={"hydroshift.utils.data_retrieval.Gage": lambda x: hash(x.gage_id)},
-        max_entries=MAX_CACHE_ENTRIES
+        hash_funcs={"hydroshift.utils.data_retrieval.Gage": lambda x: hash(x.gage_id)}, max_entries=MAX_CACHE_ENTRIES
     )
     def streamstats(self) -> pd.DataFrame:
         """Load AMS for this site."""
-        r = requests.get(
-            f"https://streamstats.usgs.gov/gagestatsservices/stations/{self.gage_id}"
-        )
+        r = requests.get(f"https://streamstats.usgs.gov/gagestatsservices/stations/{self.gage_id}")
         return r.json()
 
     @property
     @st.cache_data(
-        hash_funcs={"hydroshift.utils.data_retrieval.Gage": lambda x: hash(x.gage_id)},
-        max_entries=MAX_CACHE_ENTRIES
+        hash_funcs={"hydroshift.utils.data_retrieval.Gage": lambda x: hash(x.gage_id)}, max_entries=MAX_CACHE_ENTRIES
     )
     def ams(self) -> pd.DataFrame:
         """Load AMS for this site."""
@@ -110,16 +98,14 @@ class Gage:
 
     @property
     @st.cache_data(
-        hash_funcs={"hydroshift.utils.data_retrieval.Gage": lambda x: hash(x.gage_id)},
-        max_entries=MAX_CACHE_ENTRIES
+        hash_funcs={"hydroshift.utils.data_retrieval.Gage": lambda x: hash(x.gage_id)}, max_entries=MAX_CACHE_ENTRIES
     )
     def flow_stats(self) -> pd.DataFrame:
         """Load flow statistics for this site."""
         return get_flow_stats(self.gage_id)
 
     @st.cache_data(
-        hash_funcs={"hydroshift.utils.data_retrieval.Gage": lambda x: hash(x.gage_id)},
-        max_entries=MAX_CACHE_ENTRIES
+        hash_funcs={"hydroshift.utils.data_retrieval.Gage": lambda x: hash(x.gage_id)}, max_entries=MAX_CACHE_ENTRIES
     )
     def get_daily_values(self, start_date: str, end_date: str) -> pd.DataFrame:
         """Load daily mean discharge for this site."""
@@ -131,8 +117,7 @@ class Gage:
 
     @property
     @st.cache_data(
-        hash_funcs={"hydroshift.utils.data_retrieval.Gage": lambda x: hash(x.gage_id)},
-        max_entries=MAX_CACHE_ENTRIES
+        hash_funcs={"hydroshift.utils.data_retrieval.Gage": lambda x: hash(x.gage_id)}, max_entries=MAX_CACHE_ENTRIES
     )
     def monthly_values(self) -> pd.DataFrame:
         """Load monthly mean discharge for this site."""
@@ -161,22 +146,16 @@ class Gage:
                         code_key = code_str
 
                     if code_key in REGULATION_MAP:
-                        regulation_years.setdefault(code_key, set()).add(
-                            row["water_year"]
-                        )
+                        regulation_years.setdefault(code_key, set()).add(row["water_year"])
 
         results = {"major": [], "minor": []}
         for code, years in regulation_years.items():
             grouped_year_ranges = group_consecutive_years(sorted(years))
             formatted_ranges = ", ".join(grouped_year_ranges)
             if code in major_codes:
-                results["major"].append(
-                    f"{REGULATION_MAP[code]} for water years {formatted_ranges}"
-                )
+                results["major"].append(f"{REGULATION_MAP[code]} for water years {formatted_ranges}")
             else:
-                results["minor"].append(
-                    f"{REGULATION_MAP[code]} for water years {formatted_ranges}"
-                )
+                results["minor"].append(f"{REGULATION_MAP[code]} for water years {formatted_ranges}")
 
         return results
 
@@ -218,9 +197,7 @@ class Gage:
         if val == 9999:  # California Eq. from USGS SIR 2010-5260 NL-ELEV eq
             if self.mean_basin_elevation is None:
                 return None
-            val = (0 - 0.62) + 1.3 * (
-                1 - np.exp(0 - ((self.mean_basin_elevation) / 6500) ** 2)
-            )
+            val = (0 - 0.62) + 1.3 * (1 - np.exp(0 - ((self.mean_basin_elevation) / 6500) ** 2))
         return val
 
     @property
@@ -265,7 +242,6 @@ class Gage:
         if self.monthly_values_valid:
             plots.append("Monthly Mean Streamflow")
         return plots
-
 
 
 @st.cache_data(max_entries=MAX_CACHE_ENTRIES)
@@ -319,11 +295,12 @@ def load_site_data(gage_number: str) -> dict:
         "alt_datum_cd": resp["alt_datum_cd"].iloc[0],
     }
 
+
 @st.cache_data(max_entries=MAX_CACHE_ENTRIES)
 def get_site_catalog(gage_number: str) -> dict:
     """Query NWIS for site information"""
     try:
-        df = nwis.what_sites(sites=gage_number, seriesCatalogOutput='true', ssl_check=True)[0]
+        df = nwis.what_sites(sites=gage_number, seriesCatalogOutput="true", ssl_check=True)[0]
     except Exception as e:
         logger.error("Error querying site: %s", e, exc_info=True)
     return df
@@ -333,7 +310,7 @@ def get_site_catalog(gage_number: str) -> dict:
 def get_daily_values(gage_id, start_date, end_date):
     """Fetches mean daily flow values for a given gage."""
     try:
-        dv = nwis.get_dv(gage_id, start_date, end_date, ssl_check=True, parameterCd ="00060")[0]
+        dv = nwis.get_dv(gage_id, start_date, end_date, ssl_check=True, parameterCd="00060")[0]
     except Exception:
         logger.debug(f"Daily Values could not be found for gage_id: {gage_id}")
         return None
@@ -345,7 +322,7 @@ def get_daily_values(gage_id, start_date, end_date):
 def get_monthly_values(gage_id):
     """Fetches mean monthly flow values for a given gage and assigns a datetime column based on the year and month."""
     try:
-        mv = nwis.get_stats(gage_id, statReportType="monthly", ssl_check=True, parameterCd = "00060")[0]
+        mv = nwis.get_stats(gage_id, statReportType="monthly", ssl_check=True, parameterCd="00060")[0]
     except Exception:
         logger.debug(f"Monthly Values could not be found for gage_id: {gage_id}")
         return None
@@ -379,9 +356,7 @@ def check_missing_dates(df, freq):
 
     elif freq == "monthly":
         df["date"] = pd.to_datetime(df["date"])
-        full_range = pd.date_range(
-            start=df["date"].min(), end=df["date"].max(), freq="MS"
-        )
+        full_range = pd.date_range(start=df["date"].min(), end=df["date"].max(), freq="MS")
 
     elif freq == "water_year":
         if not isinstance(df.index, pd.DatetimeIndex):
@@ -389,9 +364,7 @@ def check_missing_dates(df, freq):
 
         df["water_year"] = df.index.year.where(df.index.month < 10, df.index.year + 1)
 
-        full_water_years = set(
-            range(df["water_year"].min(), df["water_year"].max() + 1)
-        )
+        full_water_years = set(range(df["water_year"].min(), df["water_year"].max() + 1))
         existing_water_years = set(df["water_year"])
         missing_years = sorted(full_water_years - existing_water_years)
 
@@ -423,15 +396,11 @@ def fake_ams() -> pd.DataFrame:
     rvs = np.concatenate(rvs, axis=0)
     dates = pd.date_range(start="1900-01-01", periods=len(rvs), freq="YE")
     water_year = dates.year
-    df = pd.DataFrame(
-        {"datetime": dates, "peak_va": rvs, "water_year": water_year}
-    ).set_index("datetime")
+    df = pd.DataFrame({"datetime": dates, "peak_va": rvs, "water_year": water_year}).set_index("datetime")
     return df
 
 
 @st.cache_resource
 def get_skew_raster():
     """Load the skew raster into memory."""
-    return rasterio.open(
-        __file__.replace("utils/data_retrieval.py", "data/skewmap_4326.tif")
-    )
+    return rasterio.open(__file__.replace("utils/data_retrieval.py", "data/skewmap_4326.tif"))

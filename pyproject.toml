@@ -18,6 +18,7 @@ dependencies = [
     "python-docx>=1.1.2",
     "radian>=0.6.13",
     "rasterio>=1.4.3",
+    "ruff>=0.13.1",
     "scipy==1.15.2",
     "streamlit==1.49.0",
     "streamlit-cookies-manager>=0.2.0",
@@ -27,3 +28,9 @@ dependencies = [
 [tool.setuptools.packages.find]
 include = ["hydroshift*"]
 namespaces = false
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+select = ["F401", "I001"]  # unused imports + import sorting

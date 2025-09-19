@@ -18,9 +18,7 @@ class LP3Analysis:
     use_map_skew: bool = False
     est_method: str = "MLE"
     label: str = ""
-    return_periods: List[str] = field(
-        default_factory=lambda: [1.1, 2, 5, 10, 25, 50, 100, 500]
-    )
+    return_periods: List[str] = field(default_factory=lambda: [1.1, 2, 5, 10, 25, 50, 100, 500])
 
     # TODO:  Add california equation.  Likely best to subclass this.
 
