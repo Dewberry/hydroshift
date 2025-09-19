@@ -33,4 +33,5 @@ RUN uv pip install -e .
 EXPOSE 80
 
 # Start the server
-CMD ["uv", "run", "streamlit", "run", "hydroshift/streamlit_app.py", "--server.port=80", "--server.address=0.0.0.0", "--server.headless=true"]
+CMD uv run hydroshift/add_analytics.py && uv run streamlit run hydroshift/streamlit_app.py \
+    --server.port=80 --server.address=0.0.0.0 --server.headless=true

@@ -3,10 +3,11 @@ import time
 
 import streamlit as st
 from PIL import Image
-from session import init_session_state
+from hydroshift.session import init_session_state
 
 from hydroshift._pages import changepoint, homepage, reset_homepage, summary
-from hydroshift.logging import setup_logging
+from hydroshift.app_logging import setup_logging
+
 
 setup_logging()
 logger = logging.getLogger(__name__)
@@ -15,6 +16,7 @@ logger = logging.getLogger(__name__)
 def navigator():
     """Make sidebar for multi-page navigation."""
     time.sleep(0.1)
+
     # Define general style
     im = Image.open("hydroshift/images/favicon.ico")
     st.set_page_config(page_title="HydroShift", page_icon=im)
