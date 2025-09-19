@@ -52,12 +52,7 @@ PAGE_CSS = """
             p {
                 color: #d4d4d4 !important;
             }
-            div.stButton > button {
-                color: #000000;
-            }
         }
-
-
         </style>
         """
 

@@ -8,7 +8,14 @@ services:
     restart: unless-stopped
     mem_limit: 4GB
     mem_reservation: 2GB
-
+    stdin_open: true
+    labels:
+      - 'traefik.enable=true'
+      - 'traefik.http.routers.client.rule=Host(`${PROD_APP_HOST}`)'
+      - 'traefik.http.routers.client.tls=true'
+      - 'traefik.http.routers.client.tls.certresolver=letsencrypt'
+      - 'traefik.docker.network=hydroshift_hydroshift'
+      - 'traefik.http.routers.static.middlewares=secHeaders@file'
 networks:
   hydroshift:
     driver: bridge
