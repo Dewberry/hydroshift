@@ -7,11 +7,12 @@ import time
 
 import psutil
 import requests
-
-from hydroshift.consts import R_SERVER_PORT
 import streamlit as st
 
+from hydroshift.consts import R_SERVER_PORT
+
 logger = logging.getLogger(__name__)
+
 
 def server_running(port: str) -> bool:
     """Check if server is running."""
@@ -29,6 +30,7 @@ def stop_server(pid: int):
     """Kill server subprocess."""
     logger.info("Stopping server")
     psutil.Process(pid).terminate()
+
 
 @st.cache_resource
 def start_server():

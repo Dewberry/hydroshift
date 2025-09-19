@@ -1,4 +1,5 @@
 import streamlit as st
+
 from hydroshift._pages import summary
 from hydroshift.consts import DEFAULT_GAGE
 from hydroshift.utils.jinja import write_template
@@ -60,19 +61,20 @@ PAGE_CSS = """
         </style>
         """
 
+
 def homepage():
     """Landing page for app."""
-    st.set_page_config(layout="centered", initial_sidebar_state ="collapsed")
+    st.set_page_config(layout="centered", initial_sidebar_state="collapsed")
 
     st.markdown(
         PAGE_CSS,
         unsafe_allow_html=True,
     )
 
-    with st.container(horizontal_alignment ="center"):
+    with st.container(horizontal_alignment="center"):
         st.title("HydroShift")
 
-        with st.container(horizontal=True, horizontal_alignment ="center"):
+        with st.container(horizontal=True, horizontal_alignment="center"):
             st.image("hydroshift/images/logo_base.png", width=400)
 
         st.subheader("USGS Streamflow Change Detection Tool")
@@ -80,7 +82,7 @@ def homepage():
 
         gage_input = st.text_input("Enter a USGS Gage Number:", placeholder="e.g., 01646500")
 
-        with st.container(horizontal=True, horizontal_alignment ="center"):
+        with st.container(horizontal=True, horizontal_alignment="center"):
             submit = st.button("Submit")
             demo = st.button("Use Demo Data")
 
@@ -94,6 +96,7 @@ def homepage():
         st.switch_page(st.Page(summary, title="Gage Summary"))
 
     write_template("footer.html")
+
 
 def reset_homepage():
     st.session_state["gage_id"] = None

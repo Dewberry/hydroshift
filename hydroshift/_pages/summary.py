@@ -1,6 +1,5 @@
-from datetime import date
 import datetime
-import time
+from datetime import date
 
 import folium
 import streamlit as st
@@ -137,14 +136,13 @@ SECTION_DICT = {
     "Log-Pearson III (LP3) Analysis": section_lp3,
     "AMS Seasonal Ranking": section_ams_seasonal,
     "Daily Mean Streamflow": section_daily_mean,
-    "Monthly Mean Streamflow": section_monthly_mean
+    "Monthly Mean Streamflow": section_monthly_mean,
 }
-
 
 
 def summary():
     """Display summary plots for various timeseries associated with this gage."""
-    st.set_page_config(page_title="Gage Summary", layout="wide", initial_sidebar_state ="auto")
+    st.set_page_config(page_title="Gage Summary", layout="wide", initial_sidebar_state="auto")
 
     # Sidebar for input
     with st.sidebar:
@@ -180,7 +178,10 @@ def summary():
                     # Display site metadata
                     st.subheader("Site Information")
                     write_template("site_summary.md", gage.site_data)
-                    st.link_button("Go to USGS", f'https://waterdata.usgs.gov/monitoring-location/USGS-{st.session_state["gage_id"]}/')
+                    st.link_button(
+                        "Go to USGS",
+                        f"https://waterdata.usgs.gov/monitoring-location/USGS-{st.session_state['gage_id']}/",
+                    )
 
         with st.spinner():
             gage.raise_warnings()

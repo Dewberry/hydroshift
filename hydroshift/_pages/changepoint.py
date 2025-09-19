@@ -72,9 +72,7 @@ class ChangePointAnalysis:
         current_group_tests = set(test_dict[dates[0]])
 
         for i in range(1, len(dates)):
-            if (
-                (dates[i] - current_group[-1]).days / 365
-            ) < max_dist:  # 10 years in days
+            if ((dates[i] - current_group[-1]).days / 365) < max_dist:  # 10 years in days
                 current_group.append(dates[i])
                 current_group_tests = current_group_tests.union(test_dict[dates[i]])
             else:
@@ -93,12 +91,7 @@ class ChangePointAnalysis:
         """Get the minimum p value where all tests agree and count how often that occurred."""
         all_tests = self.pval_df.fillna(1).max(axis=1).to_frame(name="pval")
         all_tests["run"] = ((all_tests != all_tests.shift(1)) * 1).cumsum()
-        for ind, r in (
-            all_tests.groupby("pval")
-            .agg({"run": pd.Series.nunique})
-            .sort_index()
-            .iterrows()
-        ):
+        for ind, r in all_tests.groupby("pval").agg({"run": pd.Series.nunique}).sort_index().iterrows():
             if r.run > 0:
                 min_p = ind
                 count = r.run
@@ -127,9 +120,7 @@ class ChangePointAnalysis:
     @property
     def cp_df(self):
         """Get a dataframe representing changepoints identified in the streaming analysis."""
-        cpa_df = pd.DataFrame.from_dict(
-            self.cp_dict, orient="index", columns=["Tests Identifying Change"]
-        )
+        cpa_df = pd.DataFrame.from_dict(self.cp_dict, orient="index", columns=["Tests Identifying Change"])
         cpa_df.index = cpa_df.index.date
         return cpa_df
 
@@ -184,9 +175,7 @@ class ChangePointAnalysis:
             "plural": p_count > 1,
             "len_cp": len(self.cp_dict),
             "len_cp_str": num_2_word(len(self.cp_dict)),
-            "test_count": num_2_word(
-                len(self.cp_dict[next(iter(self.cp_dict))].split(","))
-            ),
+            "test_count": num_2_word(len(self.cp_dict[next(iter(self.cp_dict))].split(","))),
             "grp_count": num_2_word(len(groups)),
             "plural_2": len(groups) > 0,
         }
@@ -222,9 +211,7 @@ class ChangePointAnalysis:
             document.add_heading("Modified flood frequency analysis", level=2)
             self.add_markdown_to_doc(document, self.ffa_text)
             document.add_picture(self.ffa_png, width=Inches(6.5))
-            self.add_markdown_to_doc(
-                document, "**Figure 2.** Modified flood frequency analysis."
-            )
+            self.add_markdown_to_doc(document, "**Figure 2.** Modified flood frequency analysis.")
             self.add_markdown_to_doc(document, "**Table 2.** Modified flood quantiles.")
             self.add_table_from_df(self.ffa_df, document, index_name="Regime Period")
 
@@ -235,9 +222,7 @@ class ChangePointAnalysis:
         document.save(out)
         return out
 
-    def add_table_from_df(
-        self, df: pd.DataFrame, document: Document, index_name: str = None
-    ):
+    def add_table_from_df(self, df: pd.DataFrame, document: Document, index_name: str = None):
         if index_name is not None:
             df = df.copy()
             cols = df.columns
@@ -269,10 +254,12 @@ class ChangePointAnalysis:
 
         # Validate
         if data is None:
-            return False,  "Unable to retrieve data."
+            return False, "Unable to retrieve data."
         elif len(data) < st.session_state.burn_in:
             st.session_state.valid_data = False
-            return False, "Not enough peaks available for analysis. {} peaks found, but burn-in length was {}".format(len(data["peak_va"]), st.session_state.burn_in)
+            return False, "Not enough peaks available for analysis. {} peaks found, but burn-in length was {}".format(
+                len(data["peak_va"]), st.session_state.burn_in
+            )
         else:
             return True, None
 
@@ -336,9 +323,7 @@ def make_sidebar():
             # Make data editor.  Unique key allows for refreshing
             if "data_editor_key" not in st.session_state:
                 refresh_data_editor()
-            start_config = st.column_config.DateColumn(
-                "Regime Start", format="D/M/YYYY"
-            )
+            start_config = st.column_config.DateColumn("Regime Start", format="D/M/YYYY")
             end_config = st.column_config.DateColumn("Regime End", format="D/M/YYYY")
             st.data_editor(
                 init_data,
@@ -351,13 +336,12 @@ def make_sidebar():
         st.divider()
         write_template("data_sources_side_bar.html")
 
+
 def run_analysis():
     """Run the change point model analysis."""
     cpa = st.session_state.changepoint
     cpa.pval_df = get_pvalues(cpa.gage.ams)
-    cpa.cp_dict = get_changepoints(
-        cpa.gage.ams, st.session_state.arlo_slider, st.session_state.burn_in
-    )
+    cpa.cp_dict = get_changepoints(cpa.gage.ams, st.session_state.arlo_slider, st.session_state.burn_in)
 
 
 @st.cache_data(max_entries=MAX_CACHE_ENTRIES)
@@ -392,7 +376,7 @@ def ffa_analysis(data: pd.DataFrame, regimes: list):
         if "Regime Start" in r and "Regime End" in r:
             sub = data.loc[r["Regime Start"] : r["Regime End"]].copy()
             peaks = sub["peak_va"].values
-            label = f'{r["Regime Start"]} - {r["Regime End"]}'
+            label = f"{r['Regime Start']} - {r['Regime End']}"
             lp3 = LP3Analysis(
                 st.session_state.gage_id,
                 peaks,
@@ -464,10 +448,7 @@ def make_body():
 
 def warnings():
     """Print warnings on data validity etc."""
-    if (
-        st.session_state.changepoint.gage.ams is not None
-        and "peak_va" in st.session_state.changepoint.gage.ams.columns
-    ):
+    if st.session_state.changepoint.gage.ams is not None and "peak_va" in st.session_state.changepoint.gage.ams.columns:
         if st.session_state.changepoint.gage.missing_dates_ams:
             st.warning(
                 "Missing {} dates between {} and {}".format(
