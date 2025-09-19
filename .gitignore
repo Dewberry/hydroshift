@@ -175,3 +175,6 @@ Rscripts/
 
 # Development
 dev
+
+# Deployment
+deployments.txt
