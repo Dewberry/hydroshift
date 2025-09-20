@@ -149,7 +149,7 @@ class ChangePointAnalysis:
     def test_description(self):
         """Analysis methodology."""
         payload = {
-            "alr0": st.session_state.arlo_slider,
+            "arl0": st.session_state.arlo_slider,
             "burn_in": st.session_state.burn_in,
         }
         return render_template("changepoint_description.md", payload)
