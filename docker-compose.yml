@@ -5,6 +5,8 @@ services:
     image: ${ECR_AWS_ACCOUNT_ID}.dkr.ecr.${ECR_AWS_REGION}.amazonaws.com/${ECR_CLIENT_IMAGE_TAG}
     networks:
       - hydroshift
+    env_file:
+      - .env
     restart: unless-stopped
     mem_limit: 4GB
     mem_reservation: 2GB
