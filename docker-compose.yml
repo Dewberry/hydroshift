@@ -27,7 +27,7 @@ services:
       - 'traefik.enable=true'
       - 'traefik.http.routers.nginx.rule=Host(`${PROD_APP_HOST}`)'
       - 'traefik.http.routers.nginx.tls=true'
-      - 'traefik.http.routers.nginx.tls.certresolver=lets-encrypt'
+      - 'traefik.http.routers.nginx.tls.certresolver=letsencrypt'
       - 'traefik.docker.network=hydroshift_hydroshift'
       - 'traefik.http.routers.static.middlewares=secHeaders@file'
 networks:
