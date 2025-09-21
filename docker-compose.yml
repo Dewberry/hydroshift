@@ -11,12 +11,24 @@ services:
     mem_limit: 4GB
     mem_reservation: 2GB
     stdin_open: true
+
+  nginx:
+    container_name: nginx
+    init: true
+    image: nginx:stable-alpine
+    networks:
+      - hydroshift
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
+    restart: unless-stopped
+    mem_limit: 0.5GB
+    mem_reservation: 0.25GB
     labels:
       - 'traefik.enable=true'
-      - 'traefik.http.routers.client.rule=Host(`${PROD_APP_HOST}`)'
-      - 'traefik.http.routers.client.tls=true'
-      - 'traefik.http.routers.client.tls.certresolver=letsencrypt'
-      - 'traefik.docker.network=hydroshift_hydroshift'
+      - 'traefik.http.routers.nginx.rule=Host(`${PROD_APP_HOST}`)'
+      - 'traefik.http.routers.nginx.tls=true'
+      - 'traefik.http.routers.nginx.tls.certresolver=lets-encrypt'
+      - 'traefik.docker.network=sd-viewer_sd-viewer'
       - 'traefik.http.routers.static.middlewares=secHeaders@file'
 networks:
   hydroshift:
