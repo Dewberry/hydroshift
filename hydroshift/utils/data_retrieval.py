@@ -28,13 +28,14 @@ class Gage:
     def __init__(self, gage_id: str):
         """Construct class."""
         self.gage_id = self.validate_id(gage_id)
-        self.site_data = load_site_data(gage_id)
-        self.data_catalog = get_site_catalog(gage_id)
+        self.site_data = load_site_data(self.gage_id)
+        self.data_catalog = get_site_catalog(self.gage_id)
 
     @staticmethod
     def validate_id(idx: str):
         if idx is None:
             raise GageNotFoundException()
+        idx = idx.strip()
         if not idx.isnumeric():
             raise GageNotFoundException()
         return idx
