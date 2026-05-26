@@ -267,6 +267,7 @@ def get_ams(gage_id):
         {1: "Winter", 2: "Spring", 3: "Summer", 4: "Fall"}
     )  # TODO: should add labels like Winter(JFM), Spring(AMJ), etc
 
+    df = df.replace([np.inf, -np.inf, 0], np.nan)
     df = df.dropna(subset="peak_va")
     return df
 
