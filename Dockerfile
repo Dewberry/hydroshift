@@ -1,6 +1,22 @@
-FROM ubuntu:latest
+FROM ubuntu:24.04
 
-RUN apt-get update && apt-get install -y --no-install-recommends git curl ca-certificates r-base build-essential libxml2 libxml2-dev libfontconfig1-dev libtiff-dev libcurl4-openssl-dev libsodium-dev python3.12 python3.12-venv python3-pip
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
+    curl \
+    ca-certificates \
+    r-base \
+    build-essential \
+    libxml2-dev \
+    libfontconfig1-dev \
+    libtiff-dev \
+    libcurl4-openssl-dev \
+    libsodium-dev \
+    python3 \
+    python3-venv \
+    python3-pip \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /server
 
@@ -11,6 +27,7 @@ ENV PATH="/root/.local/bin/:$PATH"
 
 # Install R dependencies
 RUN R -e "install.packages('renv', repos = c(CRAN = 'https://cloud.r-project.org'))"
+
 COPY renv.lock renv.lock
 RUN mkdir -p renv
 COPY .Rprofile .Rprofile
@@ -18,20 +35,17 @@ COPY renv/activate.R renv/activate.R
 COPY renv/settings.json renv/settings.json
 RUN R -e "renv::restore()"
 
-# Install python dependencies
+# Python deps
 COPY pyproject.toml uv.lock ./
 RUN uv venv .venv
 RUN uv sync --frozen --no-install-project
 
-# Copy project files
+# Copy project
 COPY . .
 
-# Install the app
+# Install app
 RUN uv pip install -e .
 
-# Expose port
 EXPOSE 80
 
-# Start the server
-CMD uv run hydroshift/add_analytics.py && uv run streamlit run hydroshift/streamlit_app.py \
-    --server.port=80 --server.address=0.0.0.0 --server.headless=true
+CMD ["bash", "-c", "uv run hydroshift/add_analytics.py && uv run streamlit run hydroshift/streamlit_app.py --server.port=80 --server.address=0.0.0.0 --server.headless=true"]

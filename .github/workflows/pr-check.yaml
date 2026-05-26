@@ -10,6 +10,7 @@ on:
       - '.dockerignore'
       - '.github/workflows/**'
       - 'pyproject.toml'
+      - 'Dockerfile'
 
 permissions:
   contents: read
