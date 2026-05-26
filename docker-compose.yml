@@ -5,15 +5,31 @@ services:
     image: ${ECR_AWS_ACCOUNT_ID}.dkr.ecr.${ECR_AWS_REGION}.amazonaws.com/${ECR_CLIENT_IMAGE_TAG}
     networks:
       - hydroshift
+    env_file:
+      - .env
     restart: unless-stopped
     mem_limit: 4GB
     mem_reservation: 2GB
     stdin_open: true
+
+  nginx:
+    container_name: nginx
+    init: true
+    image: nginx:stable-alpine
+    networks:
+      - hydroshift
+    ports:
+      - "8501:80"
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
+    restart: unless-stopped
+    mem_limit: 0.5GB
+    mem_reservation: 0.25GB
     labels:
       - 'traefik.enable=true'
-      - 'traefik.http.routers.client.rule=Host(`${PROD_APP_HOST}`)'
-      - 'traefik.http.routers.client.tls=true'
-      - 'traefik.http.routers.client.tls.certresolver=letsencrypt'
+      - 'traefik.http.routers.nginx.rule=Host(`${PROD_APP_HOST}`)'
+      - 'traefik.http.routers.nginx.tls=true'
+      - 'traefik.http.routers.nginx.tls.certresolver=letsencrypt'
       - 'traefik.docker.network=hydroshift_hydroshift'
       - 'traefik.http.routers.static.middlewares=secHeaders@file'
 networks:

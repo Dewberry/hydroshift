@@ -16,19 +16,26 @@ from hydroshift.utils.common import group_consecutive_years
 logger = logging.getLogger(__name__)
 
 
+def _call_nwis(func_name: str, *args, **kwargs):
+    """Log NWIS request metadata and execute the NWIS function."""
+    logger.debug("NWIS request: %s | args=%s | kwargs=%s", func_name, args, kwargs)
+    return getattr(nwis, func_name)(*args, **kwargs)
+
+
 class Gage:
     """A USGS Gage."""
 
     def __init__(self, gage_id: str):
         """Construct class."""
         self.gage_id = self.validate_id(gage_id)
-        self.site_data = load_site_data(gage_id)
-        self.data_catalog = get_site_catalog(gage_id)
+        self.site_data = load_site_data(self.gage_id)
+        self.data_catalog = get_site_catalog(self.gage_id)
 
     @staticmethod
     def validate_id(idx: str):
         if idx is None:
             raise GageNotFoundException()
+        idx = idx.strip()
         if not idx.isnumeric():
             raise GageNotFoundException()
         return idx
@@ -251,7 +258,7 @@ def get_ams(gage_id):
         if gage_id == "testing":
             df = fake_ams()
         else:
-            df = nwis.get_record(service="peaks", sites=[gage_id], ssl_check=True)
+            df = _call_nwis("get_record", service="peaks", sites=[gage_id], ssl_check=True)
     except NoSitesError:
         logger.debug(f"Peaks could not be found for gage id: {gage_id}")
         return pd.DataFrame()
@@ -260,6 +267,7 @@ def get_ams(gage_id):
         {1: "Winter", 2: "Spring", 3: "Summer", 4: "Fall"}
     )  # TODO: should add labels like Winter(JFM), Spring(AMJ), etc
 
+    df = df.replace([np.inf, -np.inf, 0], np.nan)
     df = df.dropna(subset="peak_va")
     return df
 
@@ -268,7 +276,7 @@ def get_ams(gage_id):
 def get_flow_stats(gage_id):
     """Fetches flow statistics for a given gage."""
     try:
-        df = nwis.get_stats(sites=gage_id, parameterCd="00060", ssl_check=True)[0]
+        df = _call_nwis("get_stats", sites=gage_id, parameterCd="00060", ssl_check=True)[0]
     except IndexError:
         logger.debug(f"Flow stats could not be found for gage_id: {gage_id}")
         return None
@@ -280,7 +288,7 @@ def get_flow_stats(gage_id):
 def load_site_data(gage_number: str) -> dict:
     """Query NWIS for site information"""
     try:
-        resp = nwis.get_record(sites=gage_number, service="site", ssl_check=True)
+        resp = _call_nwis("get_record", sites=gage_number, service="site", ssl_check=True)
     except ValueError:
         raise GageNotFoundException()
 
@@ -300,7 +308,7 @@ def load_site_data(gage_number: str) -> dict:
 def get_site_catalog(gage_number: str) -> dict:
     """Query NWIS for site information"""
     try:
-        df = nwis.what_sites(sites=gage_number, seriesCatalogOutput="true", ssl_check=True)[0]
+        df = _call_nwis("what_sites", sites=gage_number, seriesCatalogOutput="true", ssl_check=True)[0]
     except Exception as e:
         logger.error("Error querying site: %s", e, exc_info=True)
     return df
@@ -310,7 +318,7 @@ def get_site_catalog(gage_number: str) -> dict:
 def get_daily_values(gage_id, start_date, end_date):
     """Fetches mean daily flow values for a given gage."""
     try:
-        dv = nwis.get_dv(gage_id, start_date, end_date, ssl_check=True, parameterCd="00060")[0]
+        dv = _call_nwis("get_dv", gage_id, start_date, end_date, ssl_check=True, parameterCd="00060")[0]
     except Exception:
         logger.debug(f"Daily Values could not be found for gage_id: {gage_id}")
         return None
@@ -322,7 +330,7 @@ def get_daily_values(gage_id, start_date, end_date):
 def get_monthly_values(gage_id):
     """Fetches mean monthly flow values for a given gage and assigns a datetime column based on the year and month."""
     try:
-        mv = nwis.get_stats(gage_id, statReportType="monthly", ssl_check=True, parameterCd="00060")[0]
+        mv = _call_nwis("get_stats", gage_id, statReportType="monthly", ssl_check=True, parameterCd="00060")[0]
     except Exception:
         logger.debug(f"Monthly Values could not be found for gage_id: {gage_id}")
         return None
