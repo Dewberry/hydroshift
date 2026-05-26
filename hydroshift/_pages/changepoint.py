@@ -377,7 +377,7 @@ def get_changepoints(data: pd.DataFrame, arl0: int, burn_in: int) -> dict:
 
 
 @st.cache_data(max_entries=MAX_CACHE_ENTRIES)
-def ffa_analysis(data: pd.DataFrame, regimes: list):
+def ffa_analysis(data: pd.DataFrame, regimes: list, est_method: str, skew_mode: str):
     """Run multiple flood frequency analyses for different regimes."""
     ffas = []
     for r in regimes:
@@ -388,8 +388,8 @@ def ffa_analysis(data: pd.DataFrame, regimes: list):
             lp3 = LP3Analysis(
                 st.session_state.gage_id,
                 peaks,
-                use_map_skew=False,
-                est_method="MOM",
+                skew_mode=skew_mode,
+                est_method=est_method,
                 label=label,
             )
             ffas.append(lp3)
@@ -427,9 +427,32 @@ def make_body():
 
         st.header("Modified flood frequency analysis")
         if len(st.session_state[st.session_state.data_editor_key]["added_rows"]) > 0:
+            # Options
+            opt_col_1, opt_col_2 = st.columns(2)
+            with opt_col_1:
+                est_method = st.selectbox(
+                    "Estimation Method",
+                    ["L-moments", "Method of moments", "Maximum Likelihood"],
+                    index=1,
+                )
+                est_method = {
+                    "L-moments": "LMOM",
+                    "Method of moments": "MOM",
+                    "Maximum Likelihood": "MLE",
+                }[est_method]
+            with opt_col_2:
+                with st.container():
+                    skew_mode = st.radio("Skew Source", options=["Station Skew", "Regional Skew", "Weighted Skew"], horizontal=True, disabled=not cpa.gage.has_regional_skew)
+
+            # Analysis and display
+            if cpa.gage.missing_dates_ams is not None and len(cpa.gage.missing_dates_ams) > 0:
+                st.warning(f"Missing {len(cpa.gage.missing_dates_ams)} LP3 records")
+
             ffa_plot, ffa_df = ffa_analysis(
                 cpa.gage.ams,
                 st.session_state[st.session_state.data_editor_key]["added_rows"],
+                est_method,
+                skew_mode
             )
             if ffa_plot is not None and ffa_df is not None:
                 st.markdown(cpa.ffa_text)
