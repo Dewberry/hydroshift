@@ -1,0 +1,24 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: hydroshift
+  title: hydroshift
+  description: A Streamlit tool for exploring non-stationarity and trends in USGS streamflow gage data.
+  tags:
+    - python
+    - streamlit
+    - hydrology
+    - streamflow
+    - statistics
+  annotations:
+    github.com/project-slug: Dewberry/hydroshift
+  links:
+    - url: https://github.com/Dewberry/hydroshift
+      title: GitHub
+    - url: https://hydroshift.dewberryanalytics.com
+      title: Live App
+spec:
+  type: website
+  lifecycle: production
+  owner: dewberry
+  system: hydrology-tools
