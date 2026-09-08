@@ -1,6 +1,8 @@
-<img src="hydroshift/images/logo_base.png" alt="HydroShift logo" width="360">
+<p align="center">
+	<img src="hydroshift/images/logo_base.png" alt="HydroShift logo" width="360">
+</p>
 
-# HydroShift
+<h1 align="center">HydroShift</h1>
 
 HydroShift is a web application for reviewing streamflow records from U.S. Geological Survey (USGS) stream gages. It brings together exploratory data analysis, flood-frequency analysis, and changepoint screening so that hydrologists can examine a record, assess potential nonstationarity, and perform flood frequency analyses in one place.
 
