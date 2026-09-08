@@ -101,3 +101,9 @@ Thank you to all the USGS staff, USACE staff, and researchers who made the imple
 - U.S. Geological Survey. [National Water Information System](https://waterdata.usgs.gov/nwis).
 - U.S. Geological Survey. [PEAKFQ](https://www.usgs.gov/tools/peakfq).
 - Interagency Advisory Committee on Water Data. 1982. [Guidelines for Determining Flood Flow Frequency (Bulletin 17B)](https://doi.org/10.3133/70275162).
+
+
+<div align="center">
+    <sub>Built with ❤️ by Dewberry</sub><br/>
+    <sub>Scientific Programming and Full-Stack Software Engineering Teams</sub>
+</div>
