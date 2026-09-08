@@ -1,0 +1,31 @@
+services:
+  client:
+    container_name: client
+    init: true
+    build: .
+    networks:
+      - hydroshift
+    restart: unless-stopped
+    mem_limit: 4GB
+    mem_reservation: 2GB
+    stdin_open: true
+
+  nginx:
+    container_name: nginx
+    init: true
+    image: nginx:stable-alpine
+    depends_on:
+      - client
+    networks:
+      - hydroshift
+    ports:
+      - "8501:80"
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    restart: unless-stopped
+    mem_limit: 0.5GB
+    mem_reservation: 0.25GB
+
+networks:
+  hydroshift:
+    driver: bridge
