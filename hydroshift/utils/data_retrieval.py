@@ -298,7 +298,7 @@ def load_site_data(gage_number: str) -> dict:
         "dec_lat_va": float(resp["dec_lat_va"].iloc[0]),
         "dec_long_va": float(resp["dec_long_va"].iloc[0]),
         "drain_area_va": resp["drain_area_va"].iloc[0],
-        "huc_cd": resp["huc_cd"].iloc[0],
+        "huc_cd": str(resp["huc_cd"].iloc[0]),
         "alt_va": resp["alt_va"].iloc[0],
         "alt_datum_cd": resp["alt_datum_cd"].iloc[0],
     }
